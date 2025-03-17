@@ -3,5 +3,6 @@
 .env
 /__pycache__/*
 bots/__pycache__/
+core/__pycache__/
 bots/characters/__pycache__/
 recordings/*
