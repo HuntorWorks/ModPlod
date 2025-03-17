@@ -5,7 +5,7 @@ from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
 import os
-import tiktoken
+import tiktoken 
 import time
 import json
 
@@ -25,15 +25,16 @@ class Character:
     GPT_RESPONSE_TOKEN_COUNT = 0
     CHARACTER_DATA = None
 
-    def __init__(self, character_name, debugging=False):
-        self.CHARACTER_DATA = self.load_character()
-        #TODO: Sort this monstrosity out.
-        self.CHARACTER_NAME = self.CHARACTER_DATA
-
-        #self.CHARACTER_PERSONALITY = self.load_character()
-        #self.CHARACTER_VOICE = character_voice
-        #self.CHARACTER_VOICE_REGION_CODE = voice_region_code
-        #self.CHARACTER_VOICE_SPEAKING_SPEED = character_speaking_speed
+    def __init__(self, character_name, gpt_model="gpt-4o", max_tokens=150, gpt_temperature=0.7, debugging=False):
+        self.CHARACTER_NAME = character_name
+        self.load_character()
+        self.GPT_MODEL = gpt_model
+        self.GPT_MAX_TOKENS = max_tokens
+        self.GPT_TEMPERATURE = gpt_temperature
+        self.CHARACTER_PERSONALITY = self.CHARACTER_DATA["personality"]
+        self.CHARACTER_VOICE = self.CHARACTER_DATA["voice"]
+        self.CHARACTER_VOICE_REGION_CODE = self.CHARACTER_DATA["voice_region_code"]
+        self.CHARACTER_VOICE_SPEAKING_SPEED = self.CHARACTER_DATA["voice_speaking_rate"]
         self.debugging = debugging
         self.conversation_history = []
 
@@ -48,7 +49,8 @@ class Character:
 
     def load_character(self):
         with open(self.CHARACTER_JSON_PATH, "r") as file:
-            return json.load(file)
+            json_data = json.load(file)
+            self.CHARACTER_DATA = json_data["characters"][f"{self.CHARACTER_NAME}"]
 
     def handle_mic_input(self):
         if not self.debugging:
@@ -68,9 +70,9 @@ class Character:
         self.GPT_RESPONSE_TOKEN_COUNT = 0 # reset it from the last attempt
 
         if chat_history:
-            ai_response = self.OPENAI_MANAGER.respond_without_chat_history(mic_text, CHAT_GPT_MODEL, CHAT_GPT_TEMPERATURE, CHAT_GPT_RESPONSE_TOKEN_LIMIT, FIRST_SYSTEM_MESSAGE, True)
+            ai_response = self.OPENAI_MANAGER.respond_without_chat_history(mic_text, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, FIRST_SYSTEM_MESSAGE, True)
         else:
-            ai_response = self.OPENAI_MANAGER.respond_with_chat_history(mic_text, CHAT_GPT_MODEL, CHAT_GPT_TEMPERATURE, CHAT_GPT_RESPONSE_TOKEN_LIMIT, self.conversation_history, FIRST_SYSTEM_MESSAGE, True)
+            ai_response = self.OPENAI_MANAGER.respond_with_chat_history(mic_text, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, FIRST_SYSTEM_MESSAGE, True)
 
         self.GPT_RESPONSE_TOKEN_COUNT = self.get_num_tokens_per_string(ai_response)
 
@@ -79,10 +81,11 @@ class Character:
     def speak(self, text):
         self.text_to_speech_manager.text_to_speech(text, "male")
 
-    def set_visible(self, visible=True):
-        #TODO: pass in defaults from json config file.
-        self.OBS_WEBSOCKET_MANAGER.set_source_visibility(visible)
-        pass
+    def set_visible(self, scene_name=None, visible=True):
+        if scene_name is not None:
+            self.OBS_WEBSOCKET_MANAGER.set_source_visibility(scene_name,visible)
+        else:
+            self.OBS_WEBSOCKET_MANAGER.set_source_visibility(self.CHARACTER_DATA["obs_scene"],visible)
 
     def start_text_and_jaw_animations(self, text_to_anim):
         text_anim_thread = self.char_animation_manager.animate_character_text(text_to_anim)
