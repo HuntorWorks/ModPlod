@@ -1,7 +1,7 @@
 from google.cloud import texttospeech
 from dotenv import load_dotenv
 
-from audio_manager import AudioManager
+from core.audio_manager import AudioManager
 import os
 import requests
 import base64

@@ -1,5 +1,9 @@
 ## Handles all audio processes... deletion of recordings... recording audio etc
 import os
+
+PROJECT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RECORDINGS_PATH = os.path.join(PROJECT_ROOT_PATH, "recordings")
+
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
@@ -12,8 +16,8 @@ class AudioManager():
     def __init__(self):
         self.audio_buffer = []
         self.audio_chunk_list = {}
-        self.mic_rec_audio_filename = "recordings/mic_recording.wav"
-        self.response_audio_filename = "recordings/gpt_response.wav"
+        self.mic_rec_audio_filename = os.path.join(RECORDINGS_PATH, "mic_recording.wav")
+        self.response_audio_filename = os.path.join(RECORDINGS_PATH, "gpt_response.wav")
 
     def mic_input_callback(self, indata, frames, time, status):
         if status:

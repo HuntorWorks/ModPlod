@@ -1,9 +1,15 @@
-from openai_whisper_stt_manager import SpeechToTextManager
-from google_tts_manager import TextToSpeechManager
-from obs_websocket_manager import OBSWebsocketManager
-from character_animation_manager import AnimationManager
-from audio_manager import AudioManager
-from openai_manager import OpenAIManager
+import os
+import sys
+
+PROJECT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, PROJECT_ROOT_PATH)
+
+from core.openai_whisper_stt_manager import SpeechToTextManager
+from core.google_tts_manager import TextToSpeechManager
+from core.animation_manager import AnimationManager
+from core.obs_websocket_manager import OBSWebsocketManager
+from core.openai_manager import OpenAIManager
+from core.audio_manager import AudioManager
 from rich import print
 
 import time
@@ -14,7 +20,6 @@ CHAT_GPT_MODEL = "gpt-4o"
 CHAT_GPT_TEMPERATURE = 0.7  # 0 - 1
 CHAT_GPT_RESPONSE_TOKEN_LIMIT = 150
 
-CONVERSATION_BACKUP = "ConversationHistoryBackup.txt"
 
 RECORD_MIC_KEY = 'g'
 STOP_RECORDING_MIC_KEY = 'p'
@@ -27,6 +32,8 @@ GOOGLE_CHARACTER_VOICE_REGION_CODE = "en-GB"
 PERSONALITY_TRAITS = "Miserable and grumpy"
 CHARACTER_NAME = "Barry Braintree"
 CHARACTER_SPEAKING_SPEED = 0.1 # used to sync jaw animation with audio
+
+CONVERSATION_BACKUP_PATH = os.path.join(os.path.join(PROJECT_ROOT_PATH), f"{CHARACTER_NAME}-ConversationHistoryBackup.txt")
 
 speech_to_text = SpeechToTextManager(STOP_RECORDING_MIC_KEY)
 openai_manager = OpenAIManager()
@@ -68,39 +75,13 @@ STAY IN CHARACTER AND DON'T DEVIATE
 
 """}
 # Add to history before anything starts.
-openai_manager.add_to_history(FIRST_SYSTEM_MESSAGE)
+openai_manager.append_to_chat_history(FIRST_SYSTEM_MESSAGE)
 
 print(f"[green]Press keyboard key[/green][white bold] {RECORD_MIC_KEY}[/white bold] [green]to start recording your voice!")
 while True:
     # TESTING ONLY
     if keyboard.is_pressed(TESTING_KEYS):
-        ai_response = """Oh, for crying out loud, are you taking the piss? Walking too 
-fast? That's a new one. I swear, the things I have to deal with—makes me wonder
-if anyone's got two brain cells to rub together these days. Listen here, mate, 
-you can't be pulled over for walking too fast. Tell whoever pulled you over to 
-take that nonsense and shove it where the sun don't shine. If Blake was 
-involved in this, I'd say it's just another day of incompetence. Now, take your
-knickers off and stop wasting my time with this bollocks. Fuck off!"""
-        obs_websocket_manager.set_source_visibility()
-        time.sleep(0.2)
-        text_to_speech_manager.text_to_speech(ai_response, "male")
-
-        # THREADS
-        text_anim_thread = char_animation_manager.animate_character_text(ai_response)
-        audio_thread = audio_manager.play_character_audio()
-        talk_anim_thread = char_animation_manager.animate_character_jaw_position()
-
-        text_anim_thread.join()
-        audio_thread.join()
-        talk_anim_thread.join()
-
-        obs_websocket_manager.clear_source_text(obs_websocket_manager.CHARACTER_TEXT_SOURCE)
-        obs_websocket_manager.set_source_visibility(visibilty=False)
-
-        print(f"[yellow bold]{CHARACTER_NAME}[/yellow bold][white]:[/white][yellow] {ai_response}")
-
-        print(f"[white]Completion Tokens Used: [cyan bold]{openai_manager.completions_token_total}")
-        print(f"[white]Total Tokens Used This Session: [cyan bold]{openai_manager.all_tokens_total}")
+        pass
 
     if keyboard.is_pressed(CLOSE_BOT_KEY):
         obs_websocket_manager.disconnect_websocket()
@@ -117,7 +98,7 @@ knickers off and stop wasting my time with this bollocks. Fuck off!"""
             print("[red]ERROR[/red][white]: Could not detect your input from your mic!")
             continue
 
-        openai_manager.add_to_history({"role": "user", "content": mic_text})
+        openai_manager.append_to_chat_history({"role": "user", "content": mic_text})
 
         print(f"[cyan bold]Me[/cyan bold][white]:[/white][cyan] {mic_text}")
     else:
@@ -129,7 +110,8 @@ knickers off and stop wasting my time with this bollocks. Fuck off!"""
 
     print(f"[white]Input Tokens Used: [cyan bold]{openai_manager.prompt_token_total}")
 
-    with open(CHARACTER_NAME + "-" + CONVERSATION_BACKUP, "w") as file:
+    print(f"Attempting to write to: {CONVERSATION_BACKUP_PATH}")
+    with open(CONVERSATION_BACKUP_PATH, "w") as file:
         file.write(str(openai_manager.conversation_history))
 
     obs_websocket_manager.set_source_visibility()

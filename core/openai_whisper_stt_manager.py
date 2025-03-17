@@ -2,7 +2,7 @@
 import time
 
 import sounddevice as sd
-from audio_manager import AudioManager
+from core.audio_manager import AudioManager
 from rich import print
 import numpy as np
 import keyboard
@@ -11,7 +11,7 @@ import whisper
 
 
 class SpeechToTextManager:
-    def __init__(self, stop_recording_keybind, sample_rate=48000,):
+    def __init__(self, stop_recording_keybind=None, sample_rate=48000,): #  TODO: Change this keybind
         self.audio_manager = AudioManager()
         self.stop_recording_keybind = stop_recording_keybind
         self.sample_rate = sample_rate
