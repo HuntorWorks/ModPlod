@@ -51,8 +51,7 @@ class OpenAIManager:
     def respond_with_chat_history(self, message, gpt_model, temperature, max_tokens, conversation_history, system_message=None, send_system_message=False):
         response = None
         if system_message is None:
-            system_message = {""}
-            print(f"System Message is {system_message}")
+            system_message = {"role": "system", "content": ""}
 
         if not message:
             print("[bold red]ERROR[/bold red]:  Didn't receive prompt.  Discontinuing process.")
