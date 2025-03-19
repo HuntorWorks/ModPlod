@@ -52,6 +52,7 @@ class OpenAIManager:
         response = None
         if system_message is None:
             system_message = {""}
+            print(f"System Message is {system_message}")
 
         if not message:
             print("[bold red]ERROR[/bold red]:  Didn't receive prompt.  Discontinuing process.")

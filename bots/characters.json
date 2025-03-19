@@ -5,11 +5,14 @@
         "name": "Barry Braintree",
         "personality": "A grumpy ex-cop who complains about everything",
         "voice": "en-GB-News-K",
-        "voice_speaking_rate": 0.4,
+        "voice_speaking_rate": 0.1,
+        "voice_region_code": "en-GB",
         "obs_scene": "///BarryAI",
+        "obs_main_scene_name": "SingleScreen",
         "obs_mouth_source": "Barry_Jaw",
         "obs_speech_text_source": "Barry_Text",
         "obs_character_body_source": "Barry_Body",
+        "obs_character_group_source": "BarryCharacter",
         "first_system_message": "barry_ai/barry_first_system_message.txt"
       },
       "Jeff Thunder" : {
@@ -17,10 +20,12 @@
         "personality": "A flamboyant solider who is still stuck and believes he is in WW2.",
         "voice": "en-GB-Standard-B",
         "voice_speaking_rate": 0.4,
+        "voice_region_code": "en-GB",
         "obs_scene": "///JeffAI",
         "obs_mouth_source": "Jeff_Jaw",
         "obs_speech_text_source": "Jeff_Text",
-        "obs_character_body_source": "Jeff_Body"
+        "obs_character_body_source": "Jeff_Body",
+        "first_system_message": "barry_ai/barry_first_system_message.txt"
       }
     }
 }

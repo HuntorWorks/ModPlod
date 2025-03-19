@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import time
@@ -13,12 +14,6 @@ class OBSWebsocketManager:
         self.websocket_ip = os.getenv("OBS_SERVER_HOST")
         self.websocket_port = os.getenv("OBS_SERVER_PORT")
         self.websocket_password = os.getenv("OBS_WEBSOCKET_PASSWORD")
-
-        self.MAIN_SCENE = "SingleScreen"
-        self.MAIN_SCENE_SOURCE_TO_ACTIVATE = "///Characters"
-        self.CHARACTER_SOURCE_GROUP_NAME = "BarryCharacter"
-        self.CHARACTER_TEXT_SOURCE = "Barry_Text"
-        self.CHARACTER_TALK_MOVEMENT_SOURCE = "Character_Jaw"
 
         self.FONT_SCALING_RULES = [
             {"font_size": 250, "max_chars_per_line": 30, "max_msg_length": 200},            # 30 chars line break at 200 font 4 250 200 chars max
@@ -40,18 +35,18 @@ class OBSWebsocketManager:
     def switch_scene(self, scene=None):
         self.ws.call(requests.SetCurrentProgramScene(sceneName=scene))
 
-    def set_source_visibility(self, scene=None, source=None, visibilty=True):
+    def set_source_visibility(self, scene, source, visibilty=True):
+
+        id_response = self.ws.call(requests.GetSceneItemId(sceneName=scene, sourceName=source))
         if not scene and not source:
-            id_response = self.ws.call(requests.GetSceneItemId(sceneName=self.MAIN_SCENE, sourceName=self.MAIN_SCENE_SOURCE_TO_ACTIVATE))
-        else:
-            id_response = self.ws.call(requests.GetSceneItemId(sceneName=scene, sourceName=source))
+            print(f"[orange]WARNING[/orange]: Scene - {scene} or Source - {source} could not be found, and couldn't set visibility")
 
         if "sceneItemId" not in id_response.datain:
             print(f"[red]ERROR[/red][white]: Could not find source item id for source [cyan]{source}[/cyan] in scene [cyan]{scene}[/cyan]!")
             return
 
         source_item_id = id_response.datain['sceneItemId']
-        self.ws.call(requests.SetSceneItemEnabled(sceneName=self.MAIN_SCENE, sceneItemId=source_item_id, sceneItemEnabled=visibilty))
+        self.ws.call(requests.SetSceneItemEnabled(sceneName=scene, sceneItemId=source_item_id, sceneItemEnabled=visibilty))
 
     def get_max_text_line_length(self, font_size):
         for rule in self.FONT_SCALING_RULES:
@@ -125,6 +120,7 @@ class OBSWebsocketManager:
 
     def get_scene_item_id(self, scene_name, source_name):
         return self.ws.call(requests.GetSceneItemId(sceneName=scene_name, sourceName=source_name))
+
 
     def get_source_transform(self, scene_name, source_name):
         scene_item_id = self.get_scene_item_id(scene_name, source_name).datain["sceneItemId"]

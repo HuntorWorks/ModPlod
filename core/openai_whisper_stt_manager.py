@@ -17,11 +17,11 @@ class SpeechToTextManager:
         self.sample_rate = sample_rate
         self.model = whisper.load_model("small")
 
-    def record_mic_input(self):
+    def record_mic_input(self, stop_recording_keybind):
         buffer = []
         with sd.InputStream(callback=self.audio_manager.mic_input_callback):
             print("[bold red]Recording... ")
-            while not keyboard.is_pressed(self.stop_recording_keybind):
+            while not keyboard.is_pressed(stop_recording_keybind):
                 time.sleep(0.1)
 
         self.audio_manager.save_mic_audio_to_file(self.sample_rate)
