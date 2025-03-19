@@ -16,12 +16,14 @@ class SpeechToTextManager:
         self.stop_recording_keybind = stop_recording_keybind
         self.sample_rate = sample_rate
         self.model = whisper.load_model("small")
+        self.is_recording = False
 
     def record_mic_input(self, stop_recording_keybind):
+        self.is_recording = True
         buffer = []
         with sd.InputStream(callback=self.audio_manager.mic_input_callback):
             print("[bold red]Recording... ")
-            while not keyboard.is_pressed(stop_recording_keybind):
+            while self.is_recording:
                 time.sleep(0.1)
 
         self.audio_manager.save_mic_audio_to_file(self.sample_rate)
@@ -41,8 +43,8 @@ class SpeechToTextManager:
             else:
                 print(f"[bold red]ERROR:[/bold red][white]No text could be found from recording[/white][yellow]{abs_path}")
 
-
-
+    def stop_recording_mic(self):
+        self.is_recording = False
 
 
 
