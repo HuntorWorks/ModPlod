@@ -89,6 +89,10 @@ class OBSWebsocketManager:
             self.clear_source_text(input_name) # clear any existing text
 
         response = self.ws.call(requests.GetInputSettings(inputName=input_name))
+        if "inputSettings" not in response.datain:
+            print(f"[red]ERROR[/red]: Could not get 'inputSettings' for {input_name}")
+            return
+
         current_settings = response.datain["inputSettings"]
 
         text_to_animate = f"{current_settings['text'].strip()} {text_to_display}"
