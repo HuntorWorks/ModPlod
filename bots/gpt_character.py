@@ -10,13 +10,11 @@ import tiktoken
 import time
 import json
 
-
+CHARACTER_JSON_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "characters.json"))
 class Character:
 
     CONVERSATION_HISTORY_SAVE_DIR = os.path.abspath(os.path.join(os.path.join(__file__, ".."), "conversation_histories"))
     os.makedirs(CONVERSATION_HISTORY_SAVE_DIR, exist_ok=True)
-
-    CHARACTER_JSON_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "characters.json"))
 
     # class based managers to keep them from having multiple instances
     OPENAI_MANAGER = OpenAIManager()
@@ -56,7 +54,7 @@ class Character:
 
     def load_character(self):
 
-        with open(self.CHARACTER_JSON_PATH, "r") as file:
+        with open(CHARACTER_JSON_PATH, "r") as file:
             json_data = json.load(file)
             self.CHARACTER_DATA = json_data["characters"][f"{self.CHARACTER_NAME}"]
 
@@ -101,6 +99,7 @@ class Character:
         time.sleep(0.1)
 
         self.start_text_and_jaw_animations(text)
+
         self.OBS_WEBSOCKET_MANAGER.clear_source_text(self.CHARACTER_DATA["obs_speech_text_source"])
         self.set_visible(False)
 
