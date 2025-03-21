@@ -117,7 +117,6 @@ class Character:
 
     def add_to_chat_history(self, user_msg=None, ai_response=None):
         if self.first_message_saved == False:
-            print(f"DEBUG: First message saved = {self.FIRST_SYSTEM_MESSAGE}")
             self.conversation_history.append({'role': 'system', 'content': self.FIRST_SYSTEM_MESSAGE})
             self.first_message_saved = True
 
@@ -128,7 +127,7 @@ class Character:
             self.conversation_history.append({"role": "assistant", "content": ai_response})
             time.sleep(0.2)
         else:
-            print(f"[orange]WARNING[/orange]: No conversation history could be set")
+            print(f"[orange]WARNING[/orange]: No conversation history could be set, is it possible this is the first time this function is called?")
 
 
         with open(self.chat_history_full_path, "w") as file:
