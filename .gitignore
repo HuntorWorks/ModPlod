@@ -7,3 +7,4 @@ core/__pycache__/
 bots/characters/__pycache__/
 web_app/__pycache__/
 recordings/*
+conversation_histories/*

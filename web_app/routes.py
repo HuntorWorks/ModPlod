@@ -1,17 +1,10 @@
 import os
 import sys
-from flask import request
+from flask import request, jsonify, Blueprint
 from dotenv import load_dotenv
+from bots.gpt_character import Character
 
 from core.twitch_api_manager import TwitchAPIManager
-
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-
-sys.path.append(PROJECT_ROOT)
-sys.path.append(os.path.join(PROJECT_ROOT, "bots"))
-
-from bots.gpt_character import Character
-from flask import jsonify, Blueprint
 
 api_blueprint = Blueprint("api", __name__)
 load_dotenv()
@@ -39,25 +32,35 @@ def stop_voice_rec():
     
 @api_blueprint.route('/twitch/login', methods=["GET"])
 def twitch_login():
+    """Return the Twitch OAuth login URL for manual authentication."""
     return jsonify({"auth_url": twitch_api_manager.get_auth_url()})
-    
+
 @api_blueprint.route('/twitch/auth', methods=["GET"])
 def twitch_auth():
+    """Handle Twitch authentication callback and exchange the auth code."""
     auth_code = request.args.get('code')
 
     if not auth_code:
         return jsonify({"status": "error", "message": "No authorization code found"}), 400
-    
+
     token_response = twitch_api_manager.exchange_code_for_token(auth_code)
 
-    if "access_token" not in token_response: 
+    if not token_response or "access_token" not in token_response:
         return jsonify({
-            "status": "error", 
-            "message": "Failed to get access token", 
+            "status": "error",
+            "message": "Failed to get access token",
             "response": token_response
         }), 400
-    
+
     return jsonify({"status": "success", "message": "Authentication successful", "access_token": token_response["access_token"]})
+
+@api_blueprint.route('/twitch/token', methods=["GET"])
+def get_access_token():
+    """Return the currently saved or refreshed Twitch access token."""
+    access_token = twitch_api_manager.get_token()
+    if not access_token:
+        return jsonify({"status": "error", "message": "Failed to get valid token"}), 400
+    return jsonify({"status": "success", "access_token": access_token})
     
 @api_blueprint.route('/twitch/chat', methods=["POST"])
 def process_twitch_chat():

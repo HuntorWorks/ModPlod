@@ -1,5 +1,5 @@
 from flask import Flask
-from obs_window import start_obs_audio_window
+from web_app.obs_window import start_obs_audio_window
 from web_app.routes import api_blueprint
 import sys
 import threading
