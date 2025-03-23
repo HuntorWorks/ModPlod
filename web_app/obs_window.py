@@ -19,6 +19,9 @@ class OBSWindow(QtWidgets.QWidget):
 
 
 def start_obs_audio_window():
-    app = QtWidgets.QApplication(sys.argv)
-    window = OBSWindow()
-    app.exec_()
+    try: 
+        app = QtWidgets.QApplication(sys.argv)
+        window = OBSWindow()
+        app.exec_()
+    except Exception as e:
+        print(f"Failed to start window: {e}")
