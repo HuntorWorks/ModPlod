@@ -1,6 +1,7 @@
 from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
-from twitchAPI.type import AuthScope
+from twitchAPI.type import AuthScope, ChatEvent
+from twitchAPI.chat import Chat, EventData, ChatMessage
 from dotenv import load_dotenv
 import time, os, json, asyncio
 
@@ -29,7 +30,25 @@ class TwitchAPIManager:
             ]
         self.token_data = None
         self.TOKEN = None
-        self.REFRESH_TOKEN = None
+        self.REFRESH_TOKEN = None 
+        self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
+
+        self.chat = None
+    
+    async def on_ready(self, ready_event: EventData):
+        print("Twitch API Manager is ready")
+
+        await ready_event.chat.join_room(self.TWITCH_TARGET_CHANNEL)
+
+    async def on_message(self, message: ChatMessage):
+        try: 
+            print(f"Message received: {message.user.display_name}: {message.text}")
+
+            if message.message.content == "!test":
+                await message.chat.send_message(self.TWITCH_TARGET_CHANNEL, "Hello, world!")
+        except Exception as e:
+            print(f"Error sending message: {e}")
+    
     def start_twitch_api_manager(self):
         asyncio.run(self.twitch_api_manager())
 
@@ -51,6 +70,12 @@ class TwitchAPIManager:
 
         await twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
 
+        # Create Chat Instance
+        self.chat = await Chat(twitch)
+
+        self.register_events()
+
+        self.chat.start()
     async def refresh_token(self):
         try:
             new_token_data = await refresh_access_token(self.REFRESH_TOKEN, self.client_id, self.client_secret)
@@ -87,4 +112,7 @@ class TwitchAPIManager:
     def get_refresh_token(self):
         return self.REFRESH_TOKEN
     
-    
+
+    def register_events(self):
+        self.chat.register_event(ChatEvent.READY, self.on_ready)
+        self.chat.register_event(ChatEvent.MESSAGE, self.on_message)
