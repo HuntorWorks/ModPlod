@@ -1,5 +1,3 @@
-import os
-import sys
 from flask import request, jsonify, Blueprint
 from dotenv import load_dotenv
 from bots.gpt_character import Character
