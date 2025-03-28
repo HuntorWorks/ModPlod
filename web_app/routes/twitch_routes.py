@@ -50,10 +50,16 @@ def send_twitch_add_blocked_term():
 @twitch_routes.route('/twitch/remove_blocked_term', methods=["POST"])
 def send_twitch_remove_blocked_term():
     pass
-
+#TODO: Add broadcast_id to the request body and get this to work. 
 @twitch_routes.route('/twitch/create_clip', methods=["POST"])
 def send_twitch_create_clip():
-    pass
+    try:
+        run_async_tasks(twitch_api_manager.create_clip(broadcast_id))
+        return jsonify({"status": "success", "message": "Clip created", "broadcast_id": broadcast_id})
+    except Exception as e:
+        broadcast_id = twitch_api_manager.get_broadcast_id()
+        print(broadcast_id)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @twitch_routes.route('/settings/update', methods=["POST"])
 def update_character_settings():

@@ -10,6 +10,10 @@ class TwitchAIActionsManager:
         from core.shared_managers import twitch_api_manager
         twitch_api_manager.send_message(message)
 
+    def generate_twitch_clip(self):
+        from core.shared_managers import twitch_api_manager
+        twitch_api_manager.create_clip(os.getenv("TWITCH_CHANNEL_ID"))
+
     def send_twitch_whisper(self, user: str, message: str):
         pass
 

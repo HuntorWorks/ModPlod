@@ -106,6 +106,12 @@ class TwitchAPIManager:
         self.REFRESH_TOKEN = refresh_token
         self.save_token_data()
 
+    async def get_broadcast_id(self):
+        user_name = os.getenv("TWITCH_TARGET_CHANNEL")
+        users = await Twitch.get_users(user_name)
+
+        return users
+    
     async def send_message(self, message: str):
         print(f"Sending message: {message} to {self.TWITCH_TARGET_CHANNEL}")
         try:
@@ -113,47 +119,8 @@ class TwitchAPIManager:
         except Exception as e:
             print(f"Error sending message: {e} Chat Instance: {self.chat}")
 
-    async def send_whisper(self, user: str, message: str):
-        await self.chat.send_whisper(user, message)
-
-    async def send_whisper_to_all(self, message: str):
-        await self.chat.send_whisper_to_all(message)
-
-    async def ban_user(self, user: str):
-        await self.chat.ban_user(self.TWITCH_TARGET_CHANNEL, user)
-
-    async def unban_user(self, user: str):
-        await self.chat.unban_user(self.TWITCH_TARGET_CHANNEL, user)
-        
-    async def timeout_user(self, user: str, duration: int):
-        await self.chat.timeout_user(self.TWITCH_TARGET_CHANNEL, user, duration)
-
-    async def untimeout_user(self, user: str):
-        await self.chat.untimeout_user(self.TWITCH_TARGET_CHANNEL, user)
-    
-    async def add_blocked_term(self, term: str):
-        await self.chat.add_blocked_term(self.TWITCH_TARGET_CHANNEL, term)
-
-    async def remove_blocked_term(self, term: str):
-        await self.chat.remove_blocked_term(self.TWITCH_TARGET_CHANNEL, term)
-        
-    async def create_clip(self, title: str):
-        await self.chat.create_clip(self.TWITCH_TARGET_CHANNEL, title)
-
-    async def create_clip_with_vod(self, title: str, vod_id: str):
-        await self.chat.create_clip_with_vod(self.TWITCH_TARGET_CHANNEL, title, vod_id)
-        
-    async def delete_clip(self, clip_id: str):
-        await self.chat.delete_clip(self.TWITCH_TARGET_CHANNEL, clip_id)
-
-    async def delete_clip_with_vod(self, clip_id: str, vod_id: str):
-        await self.chat.delete_clip_with_vod(self.TWITCH_TARGET_CHANNEL, clip_id, vod_id)
-        
-    async def get_clip(self, clip_id: str):
-        return await self.chat.get_clip(self.TWITCH_TARGET_CHANNEL, clip_id)
-
-    async def get_clip_with_vod(self, clip_id: str, vod_id: str):
-        return await self.chat.get_clip_with_vod(self.TWITCH_TARGET_CHANNEL, clip_id, vod_id)
+    async def create_clip(self, broadcast_id: str):
+        await Twitch.create_clip(broadcast_id)
         
 
     def save_token_data(self):
@@ -172,7 +139,6 @@ class TwitchAPIManager:
 
     def get_refresh_token(self):
         return self.REFRESH_TOKEN
-    
 
     def register_events(self):
         self.chat.register_event(ChatEvent.READY, self.on_ready)
