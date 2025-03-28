@@ -39,7 +39,7 @@ class AudioManager():
             sd.play(data, samplerate)
             sd.wait()
 
-        audio_thread = threading.Thread(target=play_audio)
+        audio_thread = threading.Thread(target=play_audio, name="Play Audio Thread")
         audio_thread.start()
         return audio_thread
 

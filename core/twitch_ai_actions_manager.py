@@ -1,8 +1,6 @@
 import os
 from dotenv import load_dotenv
-from core.twitch_api_manager import TwitchAPIManager
 
-twitch_api_manager = TwitchAPIManager()
 
 class TwitchAIActionsManager:
     def __init__(self):

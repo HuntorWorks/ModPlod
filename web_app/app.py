@@ -1,22 +1,22 @@
-from flask import Flask
-from web_app.obs_window import start_obs_audio_window
-from web_app.routes import api_blueprint
-from core.twitch_api_manager import TwitchAPIManager
-import threading
+from flask import Flask, request
+from web_app.routes.voice_routes import voice_routes
+from web_app.routes.twitch_routes import twitch_routes
+from web_app.routes.core_routes import core_routes
+import asyncio
+
 
 app = Flask(__name__)
-app.register_blueprint(api_blueprint, url_prefix='/')
-twitch_api_manager = TwitchAPIManager()
+app.register_blueprint(voice_routes, url_prefix='/')
+app.register_blueprint(twitch_routes, url_prefix='/')
+app.register_blueprint(core_routes, url_prefix='/')
 
-
-def start_audio_window():
-    thread=threading.Thread(target=start_obs_audio_window, daemon=True)
-    thread.start()
-
-if __name__ != "__main__":
-    start_audio_window()
-    twitch_api_manager.start_twitch_api_manager()
-    app.run(host="0.0.0.0", port=5000, use_reloader=False)
-else: 
-    pass
-
+import sys
+import traceback
+import threading
+print(f"=== ACTIVE THREADS ===")
+for thread in threading.enumerate():
+    print(f"-{thread.name} (Deamon: {thread.daemon})")
+    stack = sys._current_frames()[thread.ident]
+    if stack: 
+        traceback.print_stack(stack)
+print(f"=== END ACTIVE THREADS ===")

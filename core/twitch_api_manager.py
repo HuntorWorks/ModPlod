@@ -44,7 +44,7 @@ class TwitchAPIManager:
         try: 
             print(f"Message received: {message.user.display_name}: {message.text}")
 
-            if message.message.content == "!test":
+            if message.text == "!test":
                 await message.chat.send_message(self.TWITCH_TARGET_CHANNEL, "Hello, world!")
         except Exception as e:
             print(f"Error sending message: {e}")
@@ -107,7 +107,11 @@ class TwitchAPIManager:
         self.save_token_data()
 
     async def send_message(self, message: str):
-        await self.chat.send_message(self.TWITCH_TARGET_CHANNEL, message)
+        print(f"Sending message: {message} to {self.TWITCH_TARGET_CHANNEL}")
+        try:
+            await self.chat.send_message(self.TWITCH_TARGET_CHANNEL, message)
+        except Exception as e:
+            print(f"Error sending message: {e} Chat Instance: {self.chat}")
 
     async def send_whisper(self, user: str, message: str):
         await self.chat.send_whisper(user, message)

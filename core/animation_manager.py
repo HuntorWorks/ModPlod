@@ -21,7 +21,7 @@ class AnimationManager():
                 self.obs_websocket_manager.set_source_text(self.text_source_name, word)
                 time.sleep(delay)
 
-        text_animation_thread = threading.Thread(target=animate_text)
+        text_animation_thread = threading.Thread(target=animate_text, name="Text Animation Thread")
         text_animation_thread.start()
         return text_animation_thread
 
@@ -58,7 +58,7 @@ class AnimationManager():
                 transform={"positionY": originalY_pos}
             )
 
-        talking_animation_thread = threading.Thread(target=talking_animation_thread)
+        talking_animation_thread = threading.Thread(target=talking_animation_thread, name="Talking Animation Thread")
         talking_animation_thread.start()
         return talking_animation_thread
 

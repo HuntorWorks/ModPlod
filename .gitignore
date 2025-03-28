@@ -4,6 +4,7 @@
 /__pycache__/*
 bots/__pycache__/
 core/__pycache__/
+web_app/routes/__pycache__/
 bots/characters/__pycache__/
 web_app/__pycache__/
 recordings/*
