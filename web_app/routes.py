@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 from dotenv import load_dotenv
 from bots.gpt_character import Character
+import asyncio
 
 from core.twitch_api_manager import TwitchAPIManager
 
@@ -38,12 +39,59 @@ def stop_voice_rec():
 def process_twitch_chat():
     pass
 
+@api_blueprint.route('/twitch/send_message', methods=["POST"])
+def send_twitch_message():
+    try:
+        message = "Test Send Message"
+        
+        asyncio.run(twitch_api_manager.send_message(message))
+        
+        return jsonify({"status": "success", "message": "Message sent"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@api_blueprint.route('/twitch/moderation', methods=["POST"])
-def twitch_moderation():
+@api_blueprint.route('/twitch/send_whisper', methods=["POST"])
+def send_twitch_whisper():
+    pass
+
+@api_blueprint.route('/twitch/send_whisper_to_all', methods=["POST"])
+def send_twitch_whisper_to_all():
+    pass
+
+@api_blueprint.route('/twitch/ban_user', methods=["POST"])
+def send_twitch_ban_user():
+    pass
+
+@api_blueprint.route('/twitch/unban_user', methods=["POST"])
+def send_twitch_unban_user():
+    pass
+
+@api_blueprint.route('/twitch/timeout_user', methods=["POST"])
+def send_twitch_timeout_user():
+    pass
+
+@api_blueprint.route('/twitch/untimeout_user', methods=["POST"])
+def send_twitch_untimeout_user():
+    pass
+
+@api_blueprint.route('/twitch/add_blocked_term', methods=["POST"])
+def send_twitch_add_blocked_term():
+    pass    
+
+
+@api_blueprint.route('/twitch/remove_blocked_term', methods=["POST"])
+def send_twitch_remove_blocked_term():
+    pass
+
+@api_blueprint.route('/twitch/create_clip', methods=["POST"])
+def send_twitch_create_clip():
     pass
 
 
 @api_blueprint.route('/settings/update', methods=["POST"])
 def update_character_settings():
+    pass
+
+@api_blueprint.route('/twitch/moderation', methods=["POST"])
+def twitch_moderation():
     pass

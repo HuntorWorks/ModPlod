@@ -53,29 +53,40 @@ class TwitchAPIManager:
         asyncio.run(self.twitch_api_manager())
 
     async def twitch_api_manager(self):
-        twitch = await Twitch(self.client_id, self.client_secret)
-        authenticator = UserAuthenticator(twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
+        print("Starting twitch_api_manager...")
+        try:
+            twitch = await Twitch(self.client_id, self.client_secret)
+            print("Twitch instance created.")
+            authenticator = UserAuthenticator(twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
+            print("Authenticator created.")
 
-        if os.path.exists("token_data.json"):
-            self.load_token_data()
-            self.TOKEN = self.token_data["token"]
-            self.REFRESH_TOKEN = self.token_data["refresh_token"]
-            self.TOKEN_EXPIRES_AT = self.token_data["expires_at"]
+            if os.path.exists("token_data.json"):
+                self.load_token_data()
+                self.TOKEN = self.token_data["token"]
+                self.REFRESH_TOKEN = self.token_data["refresh_token"]
+                self.TOKEN_EXPIRES_AT = self.token_data["expires_at"]
 
-            if time.time() > self.TOKEN_EXPIRES_AT:
-                await self.refresh_token()
-        else:
-            # Get the token
-            await self.full_authentication()
+                if time.time() > self.TOKEN_EXPIRES_AT:
+                    print("Token expired, refreshing...")
+                    await self.refresh_token()
+            else:
+                print("No token data found, performing full authentication...")
+                await self.full_authentication()
 
-        await twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
+            await twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
+            print("User authentication set.")
 
-        # Create Chat Instance
-        self.chat = await Chat(twitch)
+            # Create Chat Instance
+            self.chat = await Chat(twitch)
+            print(f"Chat Instance Created: {self.chat}")
 
-        self.register_events()
+            self.register_events()
 
-        self.chat.start()
+            self.chat.start()
+            print("Chat started.")
+        except Exception as e:
+            print(f"Error in twitch_api_manager: {e}")
+      
     async def refresh_token(self):
         try:
             new_token_data = await refresh_access_token(self.REFRESH_TOKEN, self.client_id, self.client_secret)
@@ -94,6 +105,52 @@ class TwitchAPIManager:
         self.TOKEN = token
         self.REFRESH_TOKEN = refresh_token
         self.save_token_data()
+
+    async def send_message(self, message: str):
+        await self.chat.send_message(self.TWITCH_TARGET_CHANNEL, message)
+
+    async def send_whisper(self, user: str, message: str):
+        await self.chat.send_whisper(user, message)
+
+    async def send_whisper_to_all(self, message: str):
+        await self.chat.send_whisper_to_all(message)
+
+    async def ban_user(self, user: str):
+        await self.chat.ban_user(self.TWITCH_TARGET_CHANNEL, user)
+
+    async def unban_user(self, user: str):
+        await self.chat.unban_user(self.TWITCH_TARGET_CHANNEL, user)
+        
+    async def timeout_user(self, user: str, duration: int):
+        await self.chat.timeout_user(self.TWITCH_TARGET_CHANNEL, user, duration)
+
+    async def untimeout_user(self, user: str):
+        await self.chat.untimeout_user(self.TWITCH_TARGET_CHANNEL, user)
+    
+    async def add_blocked_term(self, term: str):
+        await self.chat.add_blocked_term(self.TWITCH_TARGET_CHANNEL, term)
+
+    async def remove_blocked_term(self, term: str):
+        await self.chat.remove_blocked_term(self.TWITCH_TARGET_CHANNEL, term)
+        
+    async def create_clip(self, title: str):
+        await self.chat.create_clip(self.TWITCH_TARGET_CHANNEL, title)
+
+    async def create_clip_with_vod(self, title: str, vod_id: str):
+        await self.chat.create_clip_with_vod(self.TWITCH_TARGET_CHANNEL, title, vod_id)
+        
+    async def delete_clip(self, clip_id: str):
+        await self.chat.delete_clip(self.TWITCH_TARGET_CHANNEL, clip_id)
+
+    async def delete_clip_with_vod(self, clip_id: str, vod_id: str):
+        await self.chat.delete_clip_with_vod(self.TWITCH_TARGET_CHANNEL, clip_id, vod_id)
+        
+    async def get_clip(self, clip_id: str):
+        return await self.chat.get_clip(self.TWITCH_TARGET_CHANNEL, clip_id)
+
+    async def get_clip_with_vod(self, clip_id: str, vod_id: str):
+        return await self.chat.get_clip_with_vod(self.TWITCH_TARGET_CHANNEL, clip_id, vod_id)
+        
 
     def save_token_data(self):
         expires_at = time.time() + 3600 # 1 hour standard for oauth tokens
