@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from core.utils import run_async_tasks
+from core.shared_managers import twitch_api_manager
 
 twitch_routes = Blueprint("twitch_routes", __name__)
 

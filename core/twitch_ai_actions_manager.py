@@ -7,6 +7,7 @@ class TwitchAIActionsManager:
         pass
 
     def send_twitch_message(self, message: str):
+        from core.shared_managers import twitch_api_manager
         twitch_api_manager.send_message(message)
 
     def send_twitch_whisper(self, user: str, message: str):
