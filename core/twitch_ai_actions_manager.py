@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 from dotenv import load_dotenv
 from core.utils import run_async_tasks
 from core.utils import mp_print
@@ -69,13 +70,31 @@ class TwitchAIActionsManager:
         broadcaster_name = channel_info[0].broadcaster_name
         last_streamed_game = channel_info[0].game_name
 
-        if last_streamed_game is "":
+        if last_streamed_game == "":
             last_streamed_game = "unknown"
 
         self.send_twitch_message(f"Shoutout to @{broadcaster_name}! Go and check out their channel! They were last streaming {last_streamed_game}.")
 
     def send_twitch_whisper(self, user: str, message: str):
         pass
+    
+    def send_twitch_followage(self, user_name: str, user_id: str):
+        from core.shared_managers import twitch_api_manager
+        try:
+            async def get_followage():
+                broadcaster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)   
+                user = await twitch_api_manager.get_channel_followers(user_id=user_id, broadcaster_id=broadcaster_id)
+                return user
+            followers = run_async_tasks(get_followage())
+
+            if followers and hasattr(followers, 'data') and len(followers.data) > 0:
+                self.send_twitch_message(f"@{user_name} has been following for {self.convert_followage_to_days(followers.data[0].followed_at)}!")
+            else:
+                self.send_twitch_message(f"@{user_name} is not following the channel.")
+
+        except Exception as e:
+            mp_print.error(f"Error getting followage: {e}")
+            self.send_twitch_message(f"Sorry @{user_name}, I couldn't get your followage information.")
 
     def send_twitch_whisper_to_all(self, message: str):
         pass
@@ -86,14 +105,14 @@ class TwitchAIActionsManager:
     def send_twitch_unban_user(self, user: str):
         pass
     
-    def process_twitch_chat(self, message_content: str, user_name: str):
+    def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
         mp_print.debug(f"Processing twitch chat: {message_content}")
         if message_content.startswith("!"):
-            self.process_twitch_command(message_content, user_name)
+            self.process_twitch_command(message_content, user_name, user_id)
 
         
         
-    def process_twitch_command(self, message_content: str, user_name: str):
+    def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
         command = message_content.split(" ")[0]
         args = message_content.split(" ")[1:]
         if command == "!clip":
@@ -104,4 +123,34 @@ class TwitchAIActionsManager:
             self.generate_twitch_clip(user_name)
         if command == "!so" or command == "!shoutout":
             self.send_twitch_shoutout(args, user_name=None)
+        if command == "!followage":
+            self.send_twitch_followage(user_name, user_id)
     
+    def days_to_readable_format(self, total_days):
+        """Convert total days to readable format with years, months, and days"""
+        years = total_days // 365
+        remaining_days = total_days % 365
+        months = remaining_days // 30
+        days = remaining_days % 30
+        
+        parts = []
+        if years > 0:
+            parts.append(f"{years} {'year' if years == 1 else 'years'}")
+        if months > 0:
+            parts.append(f"{months} {'month' if months == 1 else 'months'}")
+        if days > 0 or (years == 0 and months == 0):
+            parts.append(f"{days} {'day' if days == 1 else 'days'}")
+            
+        # Join with commas and 'and' for the last part
+        if len(parts) > 1:
+            result = ", ".join(parts[:-1]) + " and " + parts[-1]
+        else:
+            result = parts[0]
+            
+        return result
+
+    def convert_followage_to_days(self, follow_date: datetime) -> str:
+        follow_date = follow_date.replace(tzinfo=datetime.timezone.utc)
+        current_date = datetime.datetime.now(datetime.timezone.utc)
+        difference = current_date - follow_date
+        return self.days_to_readable_format(difference.days)

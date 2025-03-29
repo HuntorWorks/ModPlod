@@ -2,6 +2,7 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage
+from twitchAPI.object.api import ChannelFollowersResult, ChannelFollower
 from core.utils import mp_print
 from dotenv import load_dotenv
 import time, os, json, asyncio
@@ -45,7 +46,7 @@ class TwitchAPIManager:
     # Called every time someone sends a message in the chat
     async def on_message(self, message: ChatMessage):
         if self.twitch_ai_actions_manager:
-            self.twitch_ai_actions_manager.process_twitch_chat(message_content=message.text, user_name=message.user.display_name)
+            self.twitch_ai_actions_manager.process_twitch_chat(message_content=message.text, user_name=message.user.display_name, user_id=message.user.id)
         else:
             mp_print.error("Twitch AI Actions Manager not yet set")
 
@@ -117,6 +118,11 @@ class TwitchAPIManager:
             broadcaster_id = user.id
             return broadcaster_id
         raise Exception("No broadcaster ID found")
+    
+    async def get_channel_followers(self, broadcaster_id: str, user_id: None):
+        mp_print.debug(f"Broadcaster ID: {broadcaster_id}, User ID: {user_id}")
+        followers = await self.twitch.get_channel_followers(broadcaster_id=broadcaster_id, user_id=user_id)
+        return followers
     
     async def send_message(self, message: str):
         try:
