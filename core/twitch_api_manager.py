@@ -106,7 +106,10 @@ class TwitchAPIManager:
         self.REFRESH_TOKEN = refresh_token
         self.save_token_data()
 #endregion
-     
+    async def get_channel_info(self, broadcaster_id: str):
+        channel_info = await self.twitch.get_channel_information(broadcaster_id)
+        return channel_info
+    
     async def get_broadcast_id_from_name(self, user_name: str):
         users = self.twitch.get_users(logins=[user_name])
 
