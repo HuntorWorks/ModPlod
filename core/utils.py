@@ -6,4 +6,7 @@ def run_async_tasks(coroutine):
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    loop.run_until_complete(coroutine)
+    return loop.run_until_complete(coroutine)
+
+def print_debug(message):
+    print(f"DEBUG: {message}")

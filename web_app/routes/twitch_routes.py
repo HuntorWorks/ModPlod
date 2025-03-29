@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from core.utils import run_async_tasks
 from core.shared_managers import twitch_api_manager
+from core.utils import print_debug
+import json
 
 twitch_routes = Blueprint("twitch_routes", __name__)
 
@@ -54,13 +56,30 @@ def send_twitch_remove_blocked_term():
 @twitch_routes.route('/twitch/create_clip', methods=["POST"])
 def send_twitch_create_clip():
     try:
-        run_async_tasks(twitch_api_manager.create_clip(broadcast_id))
-        return jsonify({"status": "success", "message": "Clip created", "broadcast_id": broadcast_id})
-    except Exception as e:
-        broadcast_id = twitch_api_manager.get_broadcast_id()
-        print(broadcast_id)
-        return jsonify({"status": "error", "message": str(e)}), 500
+        broadcast_id = run_async_tasks(twitch_api_manager.get_broadcast_id_from_name())
+        print_debug(f"Final broadcast_id in route: : {repr(broadcast_id)}")
 
+        if not broadcast_id:
+            return jsonify({"status": "error", "message": "No broadcast ID found"})
+        
+        clip_result = run_async_tasks(twitch_api_manager.create_clip(broadcast_id))#
+
+        return jsonify({
+            "status": "success", 
+            "message": "Clip created", 
+            "broadcast_id": broadcast_id, 
+            "clip_result": clip_result
+        })
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
+    
 @twitch_routes.route('/settings/update', methods=["POST"])
 def update_character_settings():
     pass

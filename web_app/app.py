@@ -10,13 +10,13 @@ app.register_blueprint(voice_routes, url_prefix='/')
 app.register_blueprint(twitch_routes, url_prefix='/')
 app.register_blueprint(core_routes, url_prefix='/')
 
-import sys
-import traceback
-import threading
-print(f"=== ACTIVE THREADS ===")
-for thread in threading.enumerate():
-    print(f"-{thread.name} (Deamon: {thread.daemon})")
-    stack = sys._current_frames()[thread.ident]
-    if stack: 
-        traceback.print_stack(stack)
-print(f"=== END ACTIVE THREADS ===")
+# import sys
+# import traceback
+# import threading
+# print(f"=== ACTIVE THREADS ===")
+# for thread in threading.enumerate():
+#     print(f"-{thread.name} (Deamon: {thread.daemon})")
+#     stack = sys._current_frames()[thread.ident]
+#     if stack: 
+#         traceback.print_stack(stack)
+# print(f"=== END ACTIVE THREADS ===")

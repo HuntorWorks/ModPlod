@@ -2,6 +2,7 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage
+from core.utils import print_debug  
 from dotenv import load_dotenv
 import time, os, json, asyncio
 
@@ -55,9 +56,9 @@ class TwitchAPIManager:
     async def twitch_api_manager(self):
         print("Starting twitch_api_manager...")
         try:
-            twitch = await Twitch(self.client_id, self.client_secret)
+            self.twitch = Twitch(self.client_id, self.client_secret)
             print("Twitch instance created.")
-            authenticator = UserAuthenticator(twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
+            authenticator = UserAuthenticator(self.twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
             print("Authenticator created.")
 
             if os.path.exists("token_data.json"):
@@ -73,11 +74,11 @@ class TwitchAPIManager:
                 print("No token data found, performing full authentication...")
                 await self.full_authentication()
 
-            await twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
+            await self.twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
             print("User authentication set.")
 
             # Create Chat Instance
-            self.chat = await Chat(twitch)
+            self.chat = await Chat(self.twitch)
             print(f"Chat Instance Created: {self.chat}")
 
             self.register_events()
@@ -99,28 +100,35 @@ class TwitchAPIManager:
         return True
     
     async def full_authentication(self):
-        twitch = await Twitch(self.client_id, self.client_secret)
+        twitch = Twitch(self.client_id, self.client_secret)
         authenticator = UserAuthenticator(twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
         token, refresh_token = await authenticator.authenticate()
         self.TOKEN = token
         self.REFRESH_TOKEN = refresh_token
         self.save_token_data()
 
-    async def get_broadcast_id(self):
+    async def get_broadcast_id_from_name(self):
         user_name = os.getenv("TWITCH_TARGET_CHANNEL")
-        users = await Twitch.get_users(user_name)
+        users = self.twitch.get_users(logins=[user_name])
 
-        return users
+        async for user in users:
+            print_debug(f"User Object: {user}")
+            broadcaster_id = user.id
+            return broadcaster_id
+        raise Exception("No broadcaster ID found")
     
     async def send_message(self, message: str):
-        print(f"Sending message: {message} to {self.TWITCH_TARGET_CHANNEL}")
+        print_debug(f"Sending message: {message} to {self.TWITCH_TARGET_CHANNEL}")
         try:
             await self.chat.send_message(self.TWITCH_TARGET_CHANNEL, message)
         except Exception as e:
             print(f"Error sending message: {e} Chat Instance: {self.chat}")
 
-    async def create_clip(self, broadcast_id: str):
-        await Twitch.create_clip(broadcast_id)
+    async def create_clip(self, broadcaster_id: str):
+        print_debug(f"Creating clip for broadcaster ID: {broadcaster_id}")
+        clip_result = await self.twitch.create_clip(broadcaster_id=broadcaster_id)
+        print(f"Clip Result: {type(clip_result)}, Clip Content: {clip_result}")
+        return clip_result
         
 
     def save_token_data(self):
