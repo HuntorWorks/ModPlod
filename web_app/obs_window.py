@@ -1,5 +1,6 @@
 import sys
 from PyQt5 import QtWidgets, QtGui
+from core.utils import mp_print
 
 
 class OBSWindow(QtWidgets.QWidget):
@@ -24,4 +25,4 @@ def start_obs_audio_window():
         window = OBSWindow()
         app.exec_()
     except Exception as e:
-        print(f"Failed to start window: {e}")
+        mp_print.error(f"Failed to start window: {e}")

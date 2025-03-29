@@ -30,7 +30,7 @@ class TextToSpeechManager:
         if response.status_code == 200:
             return self.decode_response_to_bytes(response.json()["audioContent"])
         else: 
-            raise Exception(f"[red]ERROR[/red]: {response.status_code}, {response.text}")
+            raise Exception (f"[red]ERROR[/red]: {response.status_code}, {response.text}")
         
     def decode_response_to_bytes(self, response):
         return base64.b64decode(response)

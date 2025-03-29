@@ -4,6 +4,7 @@ import sys
 import time
 from rich import print
 from dotenv import load_dotenv
+from core.utils import mp_print
 from obswebsocket import obsws, requests
 
 
@@ -23,7 +24,10 @@ class OBSWebsocketManager:
 
         self.scene_list = []
         self.ws = obsws(self.websocket_ip, self.websocket_port, self.websocket_password)
-        self.ws.connect()
+        try: 
+            self.ws.connect()
+        except Exception as e:
+            mp_print.error(f"Could not connect to OBS WebSocket.  Check your OBS Application is running and your settings are correct: {e}")
 
 
     def get_scene_list(self):
@@ -39,10 +43,10 @@ class OBSWebsocketManager:
 
         id_response = self.ws.call(requests.GetSceneItemId(sceneName=scene, sourceName=source))
         if not scene and not source:
-            print(f"[orange]WARNING[/orange]: Scene - {scene} or Source - {source} could not be found, and couldn't set visibility")
+            mp_print.warning(f"Scene - {scene} or Source - {source} could not be found, and couldn't set visibility")
 
         if "sceneItemId" not in id_response.datain:
-            print(f"[red]ERROR[/red][white]: Could not find source item id for source [cyan]{source}[/cyan] in scene [cyan]{scene}[/cyan]!")
+            mp_print.error(f"Could not find source item id for source [cyan]{source}[/cyan] in scene [cyan]{scene}[/cyan]!")
             return
 
         source_item_id = id_response.datain['sceneItemId']
@@ -85,12 +89,12 @@ class OBSWebsocketManager:
 
     def set_source_text(self, input_name, text_to_display, clear_text=False):
         if clear_text:
-            print("Clearing Text!")
+            mp_print.info("Clearing Text!")
             self.clear_source_text(input_name) # clear any existing text
 
         response = self.ws.call(requests.GetInputSettings(inputName=input_name))
         if "inputSettings" not in response.datain:
-            print(f"[red]ERROR[/red]: Could not get 'inputSettings' for {input_name}")
+            mp_print.error(f"Could not get 'inputSettings' for {input_name}")
             return
 
         current_settings = response.datain["inputSettings"]
@@ -111,7 +115,7 @@ class OBSWebsocketManager:
     def get_source_text(self, input_name):
         response = self.ws.call(requests.GetInputSettings(inputName=input_name))
         if "inputSettings" not in response.datain or "text" not in response.datain["inputSettings"]:
-            print(f"[red]ERROR[/red][white]: Could not find source text for source [cyan]{input_name}[/cyan]!")
+            mp_print.error(f"Could not find source text for source [cyan]{input_name}[/cyan]!")
             return
 
         return response.datain['inputSettings']['text']

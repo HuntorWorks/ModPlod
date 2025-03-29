@@ -3,9 +3,9 @@ import time
 
 import sounddevice as sd
 from core.audio_manager import AudioManager
+from core.utils import mp_print
 from rich import print
 import numpy as np
-import keyboard
 import os
 import whisper
 
@@ -22,7 +22,7 @@ class SpeechToTextManager:
         self.is_recording = True
         buffer = []
         with sd.InputStream(callback=self.audio_manager.mic_input_callback):
-            print("[bold red]Recording... ")
+            mp_print.recording_mic_bold()
             while self.is_recording:
                 time.sleep(0.1)
 
@@ -41,7 +41,7 @@ class SpeechToTextManager:
             if key == "text":
                 return value
             else:
-                print(f"[bold red]ERROR:[/bold red][white]No text could be found from recording[/white][yellow]{abs_path}")
+                mp_print.error(f"No text could be found from recording [yellow]{abs_path}")
 
     def stop_recording_mic(self):
         self.is_recording = False

@@ -4,7 +4,7 @@ from core.openai_manager import OpenAIManager
 from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
-from rich import print
+from core.utils import mp_print
 import os
 import tiktoken 
 import time
@@ -49,7 +49,7 @@ class Character:
         try:
             self.char_animation_manager = AnimationManager(self.OBS_WEBSOCKET_MANAGER, self.audio_manager, self.CHARACTER_DATA)
         except ValueError:
-            print(f"[red]ERROR[/red]: Animation manager could not be set. Character Data = {self.CHARACTER_DATA}")
+            mp_print.error(f"Animation manager could not be set. Character Data = {self.CHARACTER_DATA}")
 
 
     def load_character(self):
@@ -70,9 +70,9 @@ class Character:
             # Get mic input
             mic_text = self.speech_to_text.record_mic_input(stop_recording_key)
             if mic_text == " ":
-                print("[red]ERROR[/red][white]: Could not detect your input from your mic!")
+                mp_print.error("Could not detect your input from your mic!")
 
-            print(f"[cyan bold]Me[/cyan bold][white]:[/white][cyan] {mic_text}")
+            mp_print.mic_input(mic_text)
         else:
             mic_text = "Hello there, did you know that whales have the smallest brains in the world.  And that I love grass!"
 
@@ -92,7 +92,7 @@ class Character:
         return ai_response
 
     def speak(self, text):
-        print(f"speaking: {text}")
+        mp_print.ai_response(f"{text}")
 
         self.set_visible()
         self.text_to_speech_manager.text_to_speech(text, "male", self.CHARACTER_VOICE, self.CHARACTER_VOICE_REGION_CODE)
@@ -127,7 +127,7 @@ class Character:
             self.conversation_history.append({"role": "assistant", "content": ai_response})
             time.sleep(0.2)
         else:
-            print(f"[orange]WARNING[/orange]: No conversation history could be set, is it possible this is the first time this function is called?")
+            mp_print.warning(f"No conversation history could be set, is it possible this is the first time this function is called?")
 
 
         with open(self.chat_history_full_path, "w") as file:

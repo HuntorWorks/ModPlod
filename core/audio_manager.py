@@ -7,7 +7,7 @@ RECORDINGS_PATH = os.path.join(PROJECT_ROOT_PATH, "recordings")
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from rich import print
+from core.utils import mp_print
 
 import threading
 
@@ -21,7 +21,7 @@ class AudioManager():
 
     def mic_input_callback(self, indata, frames, time, status):
         if status:
-            print(f"[orange bold]WARNING[/orange bold]: {status}")
+            mp_print.warning(f"{status}")
         self.audio_buffer.append(indata.copy())
 
     def save_mic_audio_to_file(self, sample_rate):

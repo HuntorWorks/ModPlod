@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from core.utils import run_async_tasks
 from core.shared_managers import twitch_api_manager
-from core.utils import print_debug
+from core.utils import mp_print
 import json
 
 twitch_routes = Blueprint("twitch_routes", __name__)
@@ -57,7 +57,7 @@ def send_twitch_remove_blocked_term():
 def send_twitch_create_clip():
     try:
         broadcast_id = run_async_tasks(twitch_api_manager.get_broadcast_id_from_name())
-        print_debug(f"Final broadcast_id in route: : {repr(broadcast_id)}")
+        mp_print.debug(f"Final broadcast_id in route: : {repr(broadcast_id)}")
 
         if not broadcast_id:
             return jsonify({"status": "error", "message": "No broadcast ID found"})

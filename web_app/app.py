@@ -3,6 +3,7 @@ from web_app.routes.voice_routes import voice_routes
 from web_app.routes.twitch_routes import twitch_routes
 from web_app.routes.core_routes import core_routes
 import asyncio
+from core.utils import mp_print
 
 
 app = Flask(__name__)
@@ -13,10 +14,10 @@ app.register_blueprint(core_routes, url_prefix='/')
 # import sys
 # import traceback
 # import threading
-# print(f"=== ACTIVE THREADS ===")
+# mp_print.info(f"=== ACTIVE THREADS ===")
 # for thread in threading.enumerate():
-#     print(f"-{thread.name} (Deamon: {thread.daemon})")
+#     mp_print.info(f"-{thread.name} (Deamon: {thread.daemon})")
 #     stack = sys._current_frames()[thread.ident]
 #     if stack: 
 #         traceback.print_stack(stack)
-# print(f"=== END ACTIVE THREADS ===")
+# mp_print.info(f"=== END ACTIVE THREADS ===")
