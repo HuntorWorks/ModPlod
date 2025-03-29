@@ -4,8 +4,8 @@ from core.obs_websocket_manager import OBSWebsocketManager
 from core.openai_manager import OpenAIManager
 
 twitch_api_manager = TwitchAPIManager()
-twitch_actions_manager = TwitchAIActionsManager()
+twitch_ai_actions_manager = TwitchAIActionsManager()
 obs_manager = OBSWebsocketManager()
 openai_manager = OpenAIManager()
 
-
+twitch_api_manager.set_actions_manager(twitch_ai_actions_manager)

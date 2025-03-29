@@ -2,7 +2,7 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator, refresh_access_token
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage
-from core.utils import print_debug  
+from core.utils import mp_print
 from dotenv import load_dotenv
 import time, os, json, asyncio
 
@@ -35,31 +35,31 @@ class TwitchAPIManager:
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
         self.chat = None
+        self.twitch_ai_actions_manager = None
     
     async def on_ready(self, ready_event: EventData):
-        print("Twitch API Manager is ready")
+        mp_print.sys_message("Twitch API Manager is ready")
 
         await ready_event.chat.join_room(self.TWITCH_TARGET_CHANNEL)
 
+    # Called every time someone sends a message in the chat
     async def on_message(self, message: ChatMessage):
-        try: 
-            print(f"Message received: {message.user.display_name}: {message.text}")
+        if self.twitch_ai_actions_manager:
+            self.twitch_ai_actions_manager.process_twitch_chat(message_content=message.text, user_name=message.user.display_name)
+        else:
+            mp_print.error("Twitch AI Actions Manager not yet set")
 
-            if message.text == "!test":
-                await message.chat.send_message(self.TWITCH_TARGET_CHANNEL, "Hello, world!")
-        except Exception as e:
-            print(f"Error sending message: {e}")
-    
+#region TWITCH API MANAGER INIT AND AUTHENTICATION
     def start_twitch_api_manager(self):
         asyncio.run(self.twitch_api_manager())
 
     async def twitch_api_manager(self):
-        print("Starting twitch_api_manager...")
+        mp_print.info("Starting twitch_api_manager...") 
         try:
             self.twitch = Twitch(self.client_id, self.client_secret)
-            print("Twitch instance created.")
+            mp_print.info("Twitch instance created.")
             authenticator = UserAuthenticator(self.twitch, self.scopes, force_verify=False, url='http://localhost:17563', host='0.0.0.0', port=17563)
-            print("Authenticator created.")
+            mp_print.info("Authenticator created.")
 
             if os.path.exists("token_data.json"):
                 self.load_token_data()
@@ -68,25 +68,24 @@ class TwitchAPIManager:
                 self.TOKEN_EXPIRES_AT = self.token_data["expires_at"]
 
                 if time.time() > self.TOKEN_EXPIRES_AT:
-                    print("Token expired, refreshing...")
+                    mp_print.info("Token expired, refreshing...")
                     await self.refresh_token()
             else:
-                print("No token data found, performing full authentication...")
+                mp_print.warning("No token data found, performing full authentication...")
                 await self.full_authentication()
 
             await self.twitch.set_user_authentication(self.TOKEN, self.scopes, self.REFRESH_TOKEN)
-            print("User authentication set.")
 
             # Create Chat Instance
             self.chat = await Chat(self.twitch)
-            print(f"Chat Instance Created: {self.chat}")
+            mp_print.info(f"Chat Instance Created: {self.chat}")
 
             self.register_events()
 
             self.chat.start()
-            print("Chat started.")
+            mp_print.info("Chat started.")
         except Exception as e:
-            print(f"Error in twitch_api_manager: {e}")
+            mp_print.error(f"Error in twitch_api_manager: {e}")
       
     async def refresh_token(self):
         try:
@@ -95,7 +94,7 @@ class TwitchAPIManager:
             self.REFRESH_TOKEN = new_token_data["refresh_token"]
             self.save_token_data()
         except Exception as e:
-            print(f"Error refreshing token: {e}")
+            mp_print.error(f"Error refreshing token: {e}")
             await self.full_authentication()
         return True
     
@@ -106,31 +105,27 @@ class TwitchAPIManager:
         self.TOKEN = token
         self.REFRESH_TOKEN = refresh_token
         self.save_token_data()
-
-    async def get_broadcast_id_from_name(self):
-        user_name = os.getenv("TWITCH_TARGET_CHANNEL")
+#endregion
+     
+    async def get_broadcast_id_from_name(self, user_name: str):
         users = self.twitch.get_users(logins=[user_name])
 
         async for user in users:
-            print_debug(f"User Object: {user}")
             broadcaster_id = user.id
             return broadcaster_id
         raise Exception("No broadcaster ID found")
     
     async def send_message(self, message: str):
-        print_debug(f"Sending message: {message} to {self.TWITCH_TARGET_CHANNEL}")
         try:
             await self.chat.send_message(self.TWITCH_TARGET_CHANNEL, message)
         except Exception as e:
-            print(f"Error sending message: {e} Chat Instance: {self.chat}")
+            mp_print.error(f"Error sending message: {e} Chat Instance: {self.chat}")
 
     async def create_clip(self, broadcaster_id: str):
-        print_debug(f"Creating clip for broadcaster ID: {broadcaster_id}")
         clip_result = await self.twitch.create_clip(broadcaster_id=broadcaster_id)
-        print(f"Clip Result: {type(clip_result)}, Clip Content: {clip_result}")
         return clip_result
         
-
+#region TOKEN MANAGEMENT
     def save_token_data(self):
         expires_at = time.time() + 3600 # 1 hour standard for oauth tokens
         with open("token_data.json", "w") as f:
@@ -147,7 +142,12 @@ class TwitchAPIManager:
 
     def get_refresh_token(self):
         return self.REFRESH_TOKEN
+#endregion
 
+#region EVENT REGISTRATION
     def register_events(self):
         self.chat.register_event(ChatEvent.READY, self.on_ready)
         self.chat.register_event(ChatEvent.MESSAGE, self.on_message)
+#endregion
+    def set_actions_manager(self, actions_manager):
+        self.twitch_ai_actions_manager = actions_manager
