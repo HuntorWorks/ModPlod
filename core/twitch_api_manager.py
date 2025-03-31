@@ -61,6 +61,9 @@ class TwitchAPIManager:
 
     # Called every time someone sends a message in the chat
     async def on_message(self, message: ChatMessage):
+        if message.user.display_name == self.bot_twitch_user_name:
+            mp_print.debug("Ignoring message sent by the bot itself.")
+            return
         if self.twitch_ai_actions_manager:
             self.twitch_ai_actions_manager.process_twitch_chat(message_content=message.text, user_name=message.user.display_name, user_id=message.user.id)
         else:
@@ -79,15 +82,17 @@ class TwitchAPIManager:
                 self.broadcaster_id = u.id
         except Exception as e:
             mp_print.error(f"Error authenticating twitch_broadcaster: {e}")
+            
     async def authenticate_bot(self):
         try: 
             self.twitch_bot = Twitch(self.bot_client_id, self.bot_client_secret)
             await self.load_or_authenticate(self.twitch_bot, "bot_token_data.json", self.scopes_bot)
 
             # NOTE: Used to verify which user is authenticated.
-            # user_info = self.twitch_bot.get_users()
-            # async for u in user_info:
-            #     mp_print.debug(f"[Chat Auth Check] Chat will send messages as: {u.login} (ID: {u.id})")
+            user_info = self.twitch_bot.get_users()
+            async for u in user_info:
+                self.bot_twitch_user_name = u.display_name
+                self.bot_twitch_user_id = u.id
         
         except Exception as e:
             mp_print.error(f"Error authenticating twitch_bot: {e}")
@@ -163,6 +168,17 @@ class TwitchAPIManager:
             return broadcaster_id
         raise Exception("No broadcaster ID found")
     
+    async def get_user_id_from_name(self, user_name: str):
+        users = self.twitch_bot.get_users(logins=[user_name])
+
+        async for user in users:
+            mp_print.debug(f"Getting user Id from {user_name}: User ID: {user.id}")
+            mp_print.debug(f"User ID type: {type(user.id)}")
+            user_id = user.id
+            return user_id
+        
+        raise Exception("No user ID found")
+    
     async def get_channel_followers(self, broadcaster_id: str, user_id: None):
         mp_print.debug(f"Broadcaster ID: {broadcaster_id}, User ID: {user_id}")
         followers = await self.twitch_bot.get_channel_followers(broadcaster_id=broadcaster_id, user_id=user_id)
@@ -187,6 +203,35 @@ class TwitchAPIManager:
             return game.id
         mp_print.error(f"Could not find game ID for: {game_name}")
         return None
+    
+    async def timeout_or_ban_user(self, user_id: str, reason = None, duration = 600, timeout = True):
+        try:
+            mp_print.debug(f"Broadcaster ID: {self.broadcaster_id}, Moderator ID: {self.bot_twitch_user_id}, User ID: {user_id}")
+            if timeout:
+                if reason == None:
+                    reason = "No reason provided"
+                mp_print.debug(f"Timing out user: {user_id} for {duration} seconds")
+                await self.twitch_bot.ban_user(broadcaster_id=self.broadcaster_id, moderator_id=self.bot_twitch_user_id, user_id=user_id, reason=reason, duration=duration)
+                return True
+            else:
+                duration = None
+                if reason == None:
+                    reason = "No reason provided"
+                mp_print.debug(f"Banning user: {user_id} with reason: {reason}, duration: {duration}, timeout: {timeout}")
+                await self.twitch_bot.ban_user(broadcaster_id=self.broadcaster_id, moderator_id=self.bot_twitch_user_id, user_id=user_id, reason=reason, duration=duration)
+                return True
+        except Exception as e:
+            mp_print.error(f"Error banning or timing out user: {e}")
+            return False
+        
+    
+    # NOTE: Should we consider if unbanning or untiming out a user is needed to be done via barry_ai, or should it be done broadcaster side manually?
+    async def un_timeout_or_unban_user(self, moderator_id: str, user_id: str):
+        try:
+            await self.twitch_broadcaster.unban_user(broadcaster_id=self.broadcaster_id, moderator_id=moderator_id, user_id=user_id)
+        except Exception as e:
+            mp_print.error(f"Error unbanning or untiming out user: {e}")
+            return False
 #endregion
 
 #region BROADCASTER API CALLS

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from rich import print
 
 def run_async_tasks(coroutine):
@@ -42,7 +43,10 @@ class mp_print:
         pass
 
     def debug(message):
-        print(f"[purple][ModPlod-DEBUG][/purple]: {message}")
+        if os.getenv("DEBUG"):
+            print(f"[purple][ModPlod-DEBUG][/purple]: {message}")
+        else:
+            pass
 
     def info(message):
         print(f"[bright_yellow][ModPlod-INFO][/bright_yellow]: {message}")

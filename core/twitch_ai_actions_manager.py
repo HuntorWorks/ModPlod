@@ -99,48 +99,61 @@ class TwitchAIActionsManager:
     def send_twitch_whisper_to_all(self, message: str):
         pass
 
-    def send_twitch_ban_user(self, user: str):
-        pass
+    def send_twitch_ban_user(self, user_name: str, user_to_ban: str, reason: str):
+        from core.shared_managers import twitch_api_manager
+        try:
+            mp_print.debug("Entering send_twitch_ban_user function")
+            async def ban_user():
+                is_allowed = await self.is_broadcaster_or_moderator(user_name)
+                if is_allowed:
+                    user_id = await twitch_api_manager.get_user_id_from_name(user_to_ban)
+                    success = await twitch_api_manager.timeout_or_ban_user(user_id, reason, timeout=False)
+                    if success:
+                        self.send_twitch_message(f"User {user_to_ban} was banned. Reason: {reason}")
+                    else:
+                        self.send_twitch_message(f"Sorry, {user_name}, there was an error banning the user.")
+                else:
+                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
 
-    def send_twitch_unban_user(self, user: str):
+            run_async_tasks(ban_user())
+        except Exception as e:
+            mp_print.error(f"Error in send_twitch_ban_user: {e}")
+            self.send_twitch_message(f"Sorry, {user_name}, there was an error banning the user.")
+    
+    def send_twitch_timeout_user(self, user_name: str, user_id: str, reason: str, duration: int):
+        from core.shared_managers import twitch_api_manager
+        try: 
+            mp_print.debug("Entering send_twitch_timeout_user function")
+            async def timeout_user():
+                is_allowed = await self.is_broadcaster_or_moderator(user_name)
+                if is_allowed:
+                    success = await twitch_api_manager.timeout_or_ban_user(user_id,timeout=True, reason=reason, duration=duration)
+                    if success:
+                        self.send_twitch_message(f"User {user_id} was timed out for {duration} seconds. Reason: {reason}")
+                else:
+                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
+            
+            run_async_tasks(timeout_user())
+        except Exception as e:
+            mp_print.error(f"Error in send_twitch_timeout_user: {e}")
+            self.send_twitch_message(f"Sorry, {user_name}, there was an error timing out the user.")
+
+    def send_twitch_unban_user(self, user_id: str, moderator_id: str):
         pass
 
     def set_twitch_channel_title(self, user_name: str, title: str):
         from core.shared_managers import twitch_api_manager
 
         try: 
-            async def check_mod_and_update():
-                # First check if the user is the broadcaster
-                if user_name.lower() == "beerhuntor":
-                    mp_print.debug(f"User is beerhuntor, setting title to {title}")
+            async def change_title():
+                is_allowed = await self.is_broadcaster_or_moderator(user_name)
+                if is_allowed:
                     await twitch_api_manager.modify_channel_title(title)
-                    self.send_twitch_message(f"Channel title set to {title}.")
-                    return
-
-                # Check if the user is a moderator
-                caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
-                
-                # Get the moderators async generator
-                moderators = twitch_api_manager.get_channel_moderators(caster_id)
-                
-                # Properly iterate through the async generator
-                is_moderator = False
-                async for moderator in moderators:
-                    mp_print.debug(f"Moderator: {moderator}")
-                    if moderator.user_name.lower() == user_name.lower():
-                        is_moderator = True
-                        break
-                
-                if is_moderator:
-                    mp_print.debug(f"Moderator found: {user_name} setting title")
-                    await twitch_api_manager.modify_channel_title(title)
-                    mp_print.debug(f"Title set to: {title}")
                     self.send_twitch_message(f"Channel title set to {title}.")
                 else:
                     self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
-
             # Run the async function
-            run_async_tasks(check_mod_and_update())
+            run_async_tasks(change_title())
 
         except Exception as e:
             mp_print.error(f"Error setting channel title: {e}")
@@ -150,44 +163,17 @@ class TwitchAIActionsManager:
         from core.shared_managers import twitch_api_manager
 
         try: 
-            async def check_mod_and_update_game():
-                # First check if the user is the broadcaster
-                if user_name.lower() == "beerhuntor":
-                    mp_print.debug(f"User is beerhuntor, setting game to {game}")
+            async def update_game():
+                is_allowed = await self.is_broadcaster_or_moderator(user_name)
+                if is_allowed:
                     success = await twitch_api_manager.modify_channel_game(game)
+                    
                     if success:
                         self.send_twitch_message(f"Channel game set to {game}.")
                     else:
                         self.send_twitch_message(f"Sorry, couldn't set the game to {game}. The game may not exist in Twitch's database.")
-                    return
 
-                # Check if the user is a moderator
-                caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
-                
-                # Get the moderators async generator
-                moderators = twitch_api_manager.get_channel_moderators(caster_id)
-                
-                # Properly iterate through the async generator
-                is_moderator = False
-                async for moderator in moderators:
-                    mp_print.debug(f"Moderator: {moderator}")
-                    if moderator.user_name.lower() == user_name.lower():
-                        is_moderator = True
-                        break
-                
-                if is_moderator:
-                    mp_print.debug(f"Moderator found: {user_name} setting game")
-                    success = await twitch_api_manager.modify_channel_game(game)
-                    if success:
-                        mp_print.debug(f"Game set to: {game}")
-                        self.send_twitch_message(f"Channel game set to {game}.")
-                    else:
-                        self.send_twitch_message(f"Sorry, couldn't set the game to {game}. The game may not exist in Twitch's database.")
-                else:
-                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
-
-            # Run the async function
-            run_async_tasks(check_mod_and_update_game())
+            run_async_tasks(update_game())
             
         except Exception as e:
             mp_print.error(f"Error setting channel game: {e}")
@@ -216,6 +202,16 @@ class TwitchAIActionsManager:
             result = parts[0]
             
         return result
+    
+    def parse_timeout_command(self, args: list):
+        try:
+            user = args[0]
+            duration = int(args[-1])
+        except ValueError:
+            raise ValueError("Invalid command format. Must be !timeout <user> <reason> <duration>")
+        reason = get_str_from_args(args[1:-1])
+
+        return user, reason, duration
 
     def format_duration(self, follow_date: datetime) -> str:
         follow_date = follow_date.replace(tzinfo=datetime.timezone.utc)
@@ -229,8 +225,6 @@ class TwitchAIActionsManager:
         if message_content.startswith("!"):
             self.process_twitch_command(message_content, user_name, user_id)
 
-        
-        
     def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
         command = message_content.split(" ")[0].lower()
         args = message_content.split(" ")[1:]
@@ -250,5 +244,25 @@ class TwitchAIActionsManager:
         if command == "!game":
             game = get_str_from_args(args)
             self.set_twitch_channel_game(user_name, game=game)
+        if command == "!ban":
+            user_to_ban = args[0]
+            reason = get_str_from_args(args[1:])
+            self.send_twitch_ban_user(user_name, user_to_ban, reason=reason)
+        if command == "!timeout":
+            print(args)
+            user_to_timeout, reason, duration = self.parse_timeout_command(args)            
+            self.send_twitch_timeout_user(user_name, user_to_timeout, reason=reason, duration=duration)
 
-    
+    async def is_broadcaster_or_moderator(self, user_name: str):
+        from core.shared_managers import twitch_api_manager
+        # check first if user is broadcaster
+        if user_name.lower() == "beerhuntor":
+            return True
+        
+        caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
+        moderators = twitch_api_manager.get_channel_moderators(caster_id)
+
+        async for mods in moderators:
+            if mods.user_name.lower() == user_name.lower():
+                return True
+        return False
