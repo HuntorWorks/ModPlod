@@ -11,7 +11,8 @@ import whisper
 
 
 class SpeechToTextManager:
-    def __init__(self, stop_recording_keybind=None, sample_rate=48000,): #  TODO: Change this keybind
+    #TODO: Change this to a keybind
+    def __init__(self, stop_recording_keybind=None, sample_rate=48000,): 
         self.audio_manager = AudioManager()
         self.stop_recording_keybind = stop_recording_keybind
         self.sample_rate = sample_rate

@@ -52,7 +52,7 @@ def send_twitch_add_blocked_term():
 @twitch_routes.route('/twitch/remove_blocked_term', methods=["POST"])
 def send_twitch_remove_blocked_term():
     pass
-#TODO: Add broadcast_id to the request body and get this to work. 
+
 @twitch_routes.route('/twitch/create_clip', methods=["POST"])
 def send_twitch_create_clip():
     try:

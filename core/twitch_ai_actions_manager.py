@@ -3,7 +3,7 @@ import time
 import datetime
 from dotenv import load_dotenv
 from core.utils import run_async_tasks
-from core.utils import mp_print
+from core.utils import mp_print, get_str_from_args
 
 ## INFO: This class is responsible for handling the AI actions for the Twitch API. Any calls made within the code should call here.
 
@@ -88,7 +88,7 @@ class TwitchAIActionsManager:
             followers = run_async_tasks(get_followage())
 
             if followers and hasattr(followers, 'data') and len(followers.data) > 0:
-                self.send_twitch_message(f"@{user_name} has been following for {self.convert_followage_to_days(followers.data[0].followed_at)}!")
+                self.send_twitch_message(f"@{user_name} has been following for {self.format_duration(followers.data[0].followed_at)}!")
             else:
                 self.send_twitch_message(f"@{user_name} is not following the channel.")
 
@@ -104,27 +104,95 @@ class TwitchAIActionsManager:
 
     def send_twitch_unban_user(self, user: str):
         pass
-    
-    def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
-        mp_print.debug(f"Processing twitch chat: {message_content}")
-        if message_content.startswith("!"):
-            self.process_twitch_command(message_content, user_name, user_id)
 
-        
-        
-    def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
-        command = message_content.split(" ")[0]
-        args = message_content.split(" ")[1:]
-        if command == "!clip":
-            if self.last_clip_time + self.COMMAND_COOLDOWN > time.time():
-                self.send_twitch_message(f"Sorry {user_name}, you can only clip once every {self.COMMAND_COOLDOWN} seconds.")
-                return
-            self.last_clip_time = time.time()
-            self.generate_twitch_clip(user_name)
-        if command == "!so" or command == "!shoutout":
-            self.send_twitch_shoutout(args, user_name=None)
-        if command == "!followage":
-            self.send_twitch_followage(user_name, user_id)
+    def set_twitch_channel_title(self, user_name: str, title: str):
+        from core.shared_managers import twitch_api_manager
+
+        try: 
+            async def check_mod_and_update():
+                # First check if the user is the broadcaster
+                if user_name.lower() == "beerhuntor":
+                    mp_print.debug(f"User is beerhuntor, setting title to {title}")
+                    await twitch_api_manager.modify_channel_title(title)
+                    self.send_twitch_message(f"Channel title set to {title}.")
+                    return
+
+                # Check if the user is a moderator
+                caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
+                
+                # Get the moderators async generator
+                moderators = twitch_api_manager.get_channel_moderators(caster_id)
+                
+                # Properly iterate through the async generator
+                is_moderator = False
+                async for moderator in moderators:
+                    mp_print.debug(f"Moderator: {moderator}")
+                    if moderator.user_name.lower() == user_name.lower():
+                        is_moderator = True
+                        break
+                
+                if is_moderator:
+                    mp_print.debug(f"Moderator found: {user_name} setting title")
+                    await twitch_api_manager.modify_channel_title(title)
+                    mp_print.debug(f"Title set to: {title}")
+                    self.send_twitch_message(f"Channel title set to {title}.")
+                else:
+                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
+
+            # Run the async function
+            run_async_tasks(check_mod_and_update())
+
+        except Exception as e:
+            mp_print.error(f"Error setting channel title: {e}")
+            self.send_twitch_message(f"Sorry, I couldn't set the channel title to {title}.")
+
+    def set_twitch_channel_game(self, user_name: str, game: str):
+        from core.shared_managers import twitch_api_manager
+
+        try: 
+            async def check_mod_and_update_game():
+                # First check if the user is the broadcaster
+                if user_name.lower() == "beerhuntor":
+                    mp_print.debug(f"User is beerhuntor, setting game to {game}")
+                    success = await twitch_api_manager.modify_channel_game(game)
+                    if success:
+                        self.send_twitch_message(f"Channel game set to {game}.")
+                    else:
+                        self.send_twitch_message(f"Sorry, couldn't set the game to {game}. The game may not exist in Twitch's database.")
+                    return
+
+                # Check if the user is a moderator
+                caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
+                
+                # Get the moderators async generator
+                moderators = twitch_api_manager.get_channel_moderators(caster_id)
+                
+                # Properly iterate through the async generator
+                is_moderator = False
+                async for moderator in moderators:
+                    mp_print.debug(f"Moderator: {moderator}")
+                    if moderator.user_name.lower() == user_name.lower():
+                        is_moderator = True
+                        break
+                
+                if is_moderator:
+                    mp_print.debug(f"Moderator found: {user_name} setting game")
+                    success = await twitch_api_manager.modify_channel_game(game)
+                    if success:
+                        mp_print.debug(f"Game set to: {game}")
+                        self.send_twitch_message(f"Channel game set to {game}.")
+                    else:
+                        self.send_twitch_message(f"Sorry, couldn't set the game to {game}. The game may not exist in Twitch's database.")
+                else:
+                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
+
+            # Run the async function
+            run_async_tasks(check_mod_and_update_game())
+            
+        except Exception as e:
+            mp_print.error(f"Error setting channel game: {e}")
+            self.send_twitch_message(f"Sorry, I couldn't set the channel game to {game}.")
+
     
     def days_to_readable_format(self, total_days):
         """Convert total days to readable format with years, months, and days"""
@@ -149,8 +217,38 @@ class TwitchAIActionsManager:
             
         return result
 
-    def convert_followage_to_days(self, follow_date: datetime) -> str:
+    def format_duration(self, follow_date: datetime) -> str:
         follow_date = follow_date.replace(tzinfo=datetime.timezone.utc)
         current_date = datetime.datetime.now(datetime.timezone.utc)
         difference = current_date - follow_date
         return self.days_to_readable_format(difference.days)
+    
+
+    def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
+        mp_print.debug(f"Processing twitch chat: {message_content}")
+        if message_content.startswith("!"):
+            self.process_twitch_command(message_content, user_name, user_id)
+
+        
+        
+    def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
+        command = message_content.split(" ")[0].lower()
+        args = message_content.split(" ")[1:]
+        if command == "!clip":
+            if self.last_clip_time + self.COMMAND_COOLDOWN > time.time():
+                self.send_twitch_message(f"Sorry {user_name}, you can only clip once every {self.COMMAND_COOLDOWN} seconds.")
+                return
+            self.last_clip_time = time.time()
+            self.generate_twitch_clip(user_name)
+        if command == "!so" or command == "!shoutout":
+            self.send_twitch_shoutout(args, user_name=None)
+        if command == "!followage":
+            self.send_twitch_followage(user_name, user_id)
+        if command == "!title":
+            title = get_str_from_args(args)
+            self.set_twitch_channel_title(user_name, title=title)
+        if command == "!game":
+            game = get_str_from_args(args)
+            self.set_twitch_channel_game(user_name, game=game)
+
+    
