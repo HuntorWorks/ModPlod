@@ -107,11 +107,13 @@ class TwitchAIActionsManager:
                 is_allowed = await self.is_broadcaster_or_moderator(user_name)
                 if is_allowed:
                     user_id = await twitch_api_manager.get_user_id_from_name(user_to_ban)
+                    is_already_banned = await self.is_user_banned(user_id)
+                    if is_already_banned:
+                        self.send_twitch_message(f"User {user_to_ban} is already banned.")
+                        return
                     success = await twitch_api_manager.timeout_or_ban_user(user_id, reason, timeout=False)
                     if success:
                         self.send_twitch_message(f"User {user_to_ban} was banned. Reason: {reason}")
-                    else:
-                        self.send_twitch_message(f"Sorry, {user_name}, there was an error banning the user.")
                 else:
                     self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
 
@@ -120,16 +122,19 @@ class TwitchAIActionsManager:
             mp_print.error(f"Error in send_twitch_ban_user: {e}")
             self.send_twitch_message(f"Sorry, {user_name}, there was an error banning the user.")
     
-    def send_twitch_timeout_user(self, user_name: str, user_id: str, reason: str, duration: int):
+    def send_twitch_timeout_user(self, user_name: str, user_to_timeout: str, reason: str, duration: int):
         from core.shared_managers import twitch_api_manager
         try: 
-            mp_print.debug("Entering send_twitch_timeout_user function")
             async def timeout_user():
                 is_allowed = await self.is_broadcaster_or_moderator(user_name)
                 if is_allowed:
-                    success = await twitch_api_manager.timeout_or_ban_user(user_id,timeout=True, reason=reason, duration=duration)
+                    user_id = await twitch_api_manager.get_user_id_from_name(user_to_timeout)
+                    is_already_banned = await self.is_user_banned(user_id)
+                    if is_already_banned:
+                        return
+                    success = await twitch_api_manager.timeout_or_ban_user(user_id, reason=reason, duration=duration, timeout=True)
                     if success:
-                        self.send_twitch_message(f"User {user_id} was timed out for {duration} seconds. Reason: {reason}")
+                        self.send_twitch_message(f"User {user_to_timeout} was timed out for {duration} seconds. Reason: {reason}")
                 else:
                     self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
             
@@ -138,8 +143,25 @@ class TwitchAIActionsManager:
             mp_print.error(f"Error in send_twitch_timeout_user: {e}")
             self.send_twitch_message(f"Sorry, {user_name}, there was an error timing out the user.")
 
-    def send_twitch_unban_user(self, user_id: str, moderator_id: str):
-        pass
+    def send_twitch_unban_user(self, user_name: str, user_to_unban: str):
+        from core.shared_managers import twitch_api_manager
+        try:
+            async def unban_user():
+                is_allowed = await self.is_broadcaster_or_moderator(user_name)
+                if is_allowed:
+                    user_id = await twitch_api_manager.get_user_id_from_name(user_to_unban)
+                    is_banned = await self.is_user_banned(user_id)
+                    if is_banned:
+                        await twitch_api_manager.un_timeout_or_unban_user(user_id=user_id)
+                        self.send_twitch_message(f"User {user_to_unban} was unbanned.")
+                    else:
+                        self.send_twitch_message(f"User {user_to_unban} is not banned.")
+                else:
+                    self.send_twitch_message(f"Sorry, {user_name} is not a moderator of the channel.")
+            run_async_tasks(unban_user())
+        except Exception as e:
+            mp_print.error(f"Error in send_twitch_unban_user: {e}")
+            self.send_twitch_message(f"Sorry, {user_name}, there was an error unbanning the user.")
 
     def set_twitch_channel_title(self, user_name: str, title: str):
         from core.shared_managers import twitch_api_manager
@@ -205,7 +227,7 @@ class TwitchAIActionsManager:
     
     def parse_timeout_command(self, args: list):
         try:
-            user = args[0]
+            user = args[0] # user to timeout
             duration = int(args[-1])
         except ValueError:
             raise ValueError("Invalid command format. Must be !timeout <user> <reason> <duration>")
@@ -249,9 +271,11 @@ class TwitchAIActionsManager:
             reason = get_str_from_args(args[1:])
             self.send_twitch_ban_user(user_name, user_to_ban, reason=reason)
         if command == "!timeout":
-            print(args)
-            user_to_timeout, reason, duration = self.parse_timeout_command(args)            
-            self.send_twitch_timeout_user(user_name, user_to_timeout, reason=reason, duration=duration)
+            user_to_timeout, reason, duration = self.parse_timeout_command(args)
+            self.send_twitch_timeout_user(user_name=user_name, user_to_timeout=user_to_timeout, reason=reason, duration=duration)
+        if command == "!unban":
+            user_to_unban = args[0]
+            self.send_twitch_unban_user(user_name=user_name, user_to_unban=user_to_unban)
 
     async def is_broadcaster_or_moderator(self, user_name: str):
         from core.shared_managers import twitch_api_manager
@@ -266,3 +290,14 @@ class TwitchAIActionsManager:
             if mods.user_name.lower() == user_name.lower():
                 return True
         return False
+
+    async def is_user_banned(self, user_id: str):
+        from core.shared_managers import twitch_api_manager
+
+        caster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)
+        banned_users = twitch_api_manager.get_banned_users(caster_id)  # Get the async generator directly
+        async for user in banned_users:
+            if user.user_id == user_id: 
+                return True
+        return False
+

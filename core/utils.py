@@ -68,5 +68,3 @@ class mp_print:
 
     def recording_mic_bold(message):
         print(f"[bright_green][ModPlod AI][/bright_green][white]:[white italic bold]Recording...[/white italic bold]")
-
-
