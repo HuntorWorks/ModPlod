@@ -33,7 +33,6 @@ def run_async_tasks(coroutine):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(coroutine)
-    
 
 def get_str_from_args(args: list):
     return " ".join(args)

@@ -13,8 +13,27 @@ class TwitchAIActionsManager:
         mp_print.info("Twitch AI Actions Manager initialized")
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
-        self.COMMAND_COOLDOWN = 10
-        self.last_clip_time = 0  # Initialize last_clip_time
+        self.command_cooldowns = {
+            "clip": 10,
+            "so": 10,
+            "followage": 10,
+            "title": 10,
+            "game": 10,
+            "ban": 5,
+            "timeout": 5,
+            "unban": 10,
+        }
+
+        self.last_command_times = {
+            "clip": 0,
+            "so": 0,
+            "followage": 0,
+            "title": 0,
+            "game": 0,
+            "ban": 0,
+            "timeout": 0,
+            "unban": 0,
+        }
 
     def send_twitch_message(self, message: str):
         from core.shared_managers import twitch_api_manager
@@ -251,31 +270,51 @@ class TwitchAIActionsManager:
         command = message_content.split(" ")[0].lower()
         args = message_content.split(" ")[1:]
         if command == "!clip":
-            if self.last_clip_time + self.COMMAND_COOLDOWN > time.time():
-                self.send_twitch_message(f"Sorry {user_name}, you can only clip once every {self.COMMAND_COOLDOWN} seconds.")
-                return
-            self.last_clip_time = time.time()
-            self.generate_twitch_clip(user_name)
+            if self.can_send_command("clip"):
+                self.generate_twitch_clip(user_name)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only clip once every {self.command_cooldowns['clip']} seconds.")
         if command == "!so" or command == "!shoutout":
-            self.send_twitch_shoutout(args, user_name=None)
+            if self.can_send_command("so"):
+                self.send_twitch_shoutout(args, user_name=None)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only shoutout once every {self.command_cooldowns['so']} seconds.")
         if command == "!followage":
-            self.send_twitch_followage(user_name, user_id)
+            if self.can_send_command("followage"):
+                self.send_twitch_followage(user_name, user_id)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only get followage once every {self.command_cooldowns['followage']} seconds.")
         if command == "!title":
             title = get_str_from_args(args)
-            self.set_twitch_channel_title(user_name, title=title)
+            if self.can_send_command("title"):
+                self.set_twitch_channel_title(user_name, title=title)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only change the title once every {self.command_cooldowns['title']} seconds.")
         if command == "!game":
             game = get_str_from_args(args)
-            self.set_twitch_channel_game(user_name, game=game)
+            if self.can_send_command("game"):
+                self.set_twitch_channel_game(user_name, game=game)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only change the game once every {self.command_cooldowns['game']} seconds.")
         if command == "!ban":
             user_to_ban = args[0]
             reason = get_str_from_args(args[1:])
-            self.send_twitch_ban_user(user_name, user_to_ban, reason=reason)
+            if self.can_send_command("ban"):
+                self.send_twitch_ban_user(user_name, user_to_ban, reason=reason)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only ban once every {self.command_cooldowns['ban']} seconds.")
         if command == "!timeout":
             user_to_timeout, reason, duration = self.parse_timeout_command(args)
-            self.send_twitch_timeout_user(user_name=user_name, user_to_timeout=user_to_timeout, reason=reason, duration=duration)
+            if self.can_send_command("timeout"):
+                self.send_twitch_timeout_user(user_name=user_name, user_to_timeout=user_to_timeout, reason=reason, duration=duration)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only timeout once every {self.command_cooldowns['timeout']} seconds.")
         if command == "!unban":
             user_to_unban = args[0]
-            self.send_twitch_unban_user(user_name=user_name, user_to_unban=user_to_unban)
+            if self.can_send_command("unban"):
+                self.send_twitch_unban_user(user_name=user_name, user_to_unban=user_to_unban)
+            else:
+                self.send_twitch_message(f"Sorry {user_name}, you can only unban once every {self.command_cooldowns['unban']} seconds.")
 
     async def is_broadcaster_or_moderator(self, user_name: str):
         from core.shared_managers import twitch_api_manager
@@ -300,4 +339,14 @@ class TwitchAIActionsManager:
             if user.user_id == user_id: 
                 return True
         return False
+    
+    #POSSIBLE: Add per user cooldowns if it is needed.
+    def can_send_command(self, command: str) -> bool: 
+        now = time.time()
+        last_command_time = self.last_command_times.get(command, 0)
+        cooldown = self.command_cooldowns.get(command, 0)
 
+        if now - last_command_time >= cooldown:
+            self.last_command_times[command] = now
+            return True
+        return False
