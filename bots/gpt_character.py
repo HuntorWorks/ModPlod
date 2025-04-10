@@ -24,12 +24,13 @@ class Character:
     GPT_RESPONSE_TOKEN_COUNT = 0
     CHARACTER_DATA = None
 
-    def __init__(self, character_name, gpt_model="gpt-4o", max_tokens=150, gpt_temperature=0.7, debugging=False):
+    def __init__(self, character_name, gpt_model="gpt-4o", max_tokens=150, gpt_temperature=0.7, debugging=False, event_handler=None):
         self.CHARACTER_NAME = character_name
         self.chat_history_file = f"{self.CHARACTER_NAME}-ChatHistoryBackup.txt"
         self.chat_history_full_path = os.path.join(self.CONVERSATION_HISTORY_SAVE_DIR, self.chat_history_file)
         self.first_message_saved = False
         self.conversation_history = []
+        self.FIRST_SYSTEM_MESSAGE = ""
         self.load_character()
         self.GPT_MODEL = gpt_model
         self.GPT_MAX_TOKENS = max_tokens
@@ -38,19 +39,19 @@ class Character:
         self.CHARACTER_VOICE = self.CHARACTER_DATA["voice"]
         self.CHARACTER_VOICE_REGION_CODE = self.CHARACTER_DATA["voice_region_code"]
         self.CHARACTER_VOICE_SPEAKING_SPEED = self.CHARACTER_DATA["voice_speaking_rate"]
-        self.FIRST_SYSTEM_MESSAGE = ""
+        mp_print.debug(f"First system message at init: {self.FIRST_SYSTEM_MESSAGE}")
         self.debugging = debugging
 
         # Initialise components.
         self.speech_to_text = SpeechToTextManager()
         self.audio_manager = AudioManager()
         self.text_to_speech_manager = TextToSpeechManager()
+        self.event_handler = event_handler
 
         try:
             self.char_animation_manager = AnimationManager(self.OBS_WEBSOCKET_MANAGER, self.audio_manager, self.CHARACTER_DATA)
         except ValueError:
             mp_print.error(f"Animation manager could not be set. Character Data = {self.CHARACTER_DATA}")
-
 
     def load_character(self):
 
@@ -61,8 +62,10 @@ class Character:
         dir_name = os.path.dirname(__file__)
         full_path = os.path.join(dir_name, self.CHARACTER_DATA["first_system_message"])
 
+        
         with open(full_path, "r") as file:
             self.FIRST_SYSTEM_MESSAGE = file.read()
+            mp_print.debug(f"Loaded first system message: {self.FIRST_SYSTEM_MESSAGE}")
             self.add_to_chat_history()
 
     def handle_mic_input(self, stop_recording_key):
@@ -78,14 +81,17 @@ class Character:
 
         return mic_text
 
-    def get_gpt_string_response(self, mic_text, chat_history=True):
+    def get_gpt_string_response(self, msg_to_respond, chat_history=True):
         # Get a response from GPT
         self.GPT_RESPONSE_TOKEN_COUNT = 0 # reset it from the last attempt
 
         if chat_history:
-            ai_response = self.OPENAI_MANAGER.respond_with_chat_history(mic_text, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, self.FIRST_SYSTEM_MESSAGE, True)
+            content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
+            ai_response = self.OPENAI_MANAGER.respond_with_chat_history(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, content, True)
         else:
-            ai_response = self.OPENAI_MANAGER.respond_without_chat_history(mic_text, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.FIRST_SYSTEM_MESSAGE, True)
+            content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
+            mp_print.debug(f"Sending content first sys message to GPT: {content} | {msg_to_respond}")
+            ai_response = self.OPENAI_MANAGER.respond_without_chat_history(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, content, True)
 
         self.GPT_RESPONSE_TOKEN_COUNT = self.get_num_tokens_per_string(ai_response)
 

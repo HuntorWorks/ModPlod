@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from core.utils import run_async_tasks
-from core.shared_managers import twitch_api_manager
+from core.shared_managers import twitch_api_manager, barry_ai_event_handler
 from core.utils import mp_print
 import json
 
@@ -69,14 +69,15 @@ def twitch_eventsub_callback_follow():
     data = request.get_json(force=True)
     print(data)
 
-    # 🔒 Respond to Twitch verification
     if "challenge" in data:
         return data["challenge"], 200, {'Content-Type': 'text/plain'}
 
-    # ✅ Real follow event payload
     if "event" in data:
-        user = data["event"].get("user_name", "unknown")
-        mp_print.info(f"🎉 New follower: {user}")
+        payload = {
+            "user": data["event"].get("user_name", "unknown"),
+            "user_id": data["event"].get("user_id", "unknown")
+        }     
+        barry_ai_event_handler.on_twitch_follow_event(payload)
 
     return jsonify({"status": "ok"}), 200
 
@@ -88,12 +89,13 @@ def twitch_eventsub_callback_subscribe():
         return data["challenge"], 200, {'Content-Type': 'text/plain'}
     
     if "event" in data:
-        user = data["event"].get("user_name", "unknown")
-        mp_print.info(f"🎉 New subscriber: {user}")
-        subscription_tier = data["event"].get("tier", "unknown")
-        mp_print.info(f"🎉 New subscription tier: {subscription_tier}")
-        is_gift_sub = data["event"].get("is_gift", "unknown")
-        mp_print.info(f"🎉 Gifted: {is_gift_sub}") 
+        payload = {
+            "user": data["event"].get("user_name", "unknown")   ,
+            "subscription_tier": data["event"].get("tier", "unknown"),
+            "is_gift_sub": data["event"].get("is_gift", "unknown")
+        }
+        barry_ai_event_handler.on_twitch_subscribe_event(payload)
+        
         
     return jsonify({"status": "ok"}), 200
 
@@ -106,14 +108,14 @@ def twitch_eventsub_callback_subscribe_gift():
         return data["challenge"], 200, {'Content-Type': 'text/plain'}
     
     if "event" in data:
-        user = data["event"].get("user_name", "unknown")
-        mp_print.info(f"🎉 New subscriber: {user}")
-        tier = data["event"].get("tier", "unknown")
-        mp_print.info(f"🎉 New subscription tier: {tier}")
-        gift_count = data["event"].get("total", 0)
-        total_gifts_count = data["event"].get("cumulative_total", 0)
-        mp_print.info(f"🎉 Has gifted {gift_count} subscriptions, and has gifted {total_gifts_count} subscriptions in total")
+        payload = {
+            "user": data["event"].get("user_name", "unknown"),
+            "tier": data["event"].get("tier", "unknown"),
+            "gift_count": data["event"].get("total", 0),
+            "total_gifts_count": data["event"].get("cumulative_total", 0)
+        }
 
+        barry_ai_event_handler.on_twitch_subscribe_gift_event(payload)
 
     return jsonify({"status": "ok"}), 200
 
@@ -126,17 +128,16 @@ def twitch_eventsub_callback_subscription_msg():
         return data["challenge"], 200, {'Content-Type': 'text/plain'}
     
     if "event" in data:
-        user = data["event"].get("user_name", "unknown")
-        mp_print.info(f"🎉 New subscription message: {user}")
-        message = data["event"].get("message", "unknown")
-        message_text = message["text"]
-        mp_print.info(f"🎉 New subscription message: {message_text}")
+        payload = {
+            "user": data["event"].get("user_name", "unknown"),
+            "message": data["event"].get("message", "unknown")
+        }
+        barry_ai_event_handler.on_twitch_subscription_message_event(payload)
+
 
     return jsonify({"status": "ok"}), 200
 
-
-#ADMIN ROUTES
-
+#region ADMIN ROUTES
 @twitch_routes.route('/twitch/admin/subscribe_to_eventsub_follow', methods=["POST"])
 def twitch_admin_subscribe_to_eventsub_follow():
     result = run_async_tasks(twitch_api_manager.subscribe_to_eventsub_follow())
@@ -145,3 +146,31 @@ def twitch_admin_subscribe_to_eventsub_follow():
         return jsonify({"status": "error", "message": "Failed to subscribe to eventsub follow"}), 500   
     return jsonify({"status": "success", "message": "Event subscribed"})
 
+@twitch_routes.route('/twitch/admin/unsubscribe_to_all_eventsub', methods=["POST"])
+def unsubscribe_all_eventsubs():
+    import requests
+    from core.utils import run_async_tasks
+    from flask import jsonify
+
+    access_token = run_async_tasks(twitch_api_manager.get_app_access_token())
+
+    headers = {
+        "Client-ID": twitch_api_manager.bot_client_id,
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    response = requests.get("https://api.twitch.tv/helix/eventsub/subscriptions", headers=headers)
+    subs = response.json().get("data", [])
+
+    print(f"[ModPlod-INFO]: Found {len(subs)} subscriptions to remove...")
+
+    for sub in subs:
+        print(f"→ Removing: {sub['type']} | ID: {sub['id']}")
+        del_resp = requests.delete(f"https://api.twitch.tv/helix/eventsub/subscriptions?id={sub['id']}", headers=headers)
+        if del_resp.status_code == 204:
+            print(f"✅ Deleted {sub['id']}")
+        else:
+            print(f"❌ Failed to delete {sub['id']}: {del_resp.status_code} - {del_resp.text}")
+
+    return jsonify({"status": "success", "message": f"Attempted to delete {len(subs)} EventSubs."})
+#endregion

@@ -152,10 +152,10 @@ class TwitchAPIManager:
 
             # Subscribe to eventSubs
             mp_print.debug("Subscribing to eventSubs")
-            await self.subscribe_to_eventsub_follow()
             await self.subscribe_to_eventsub_subscribe()
             await self.subscribe_to_eventsub_subscribe_gift()
             await self.subscribe_to_eventsub_subscription_msg()
+            await self.subscribe_to_eventsub_follow()
 
             # Create Chat Instance
             self.chat = await Chat(self.twitch_bot)
@@ -320,9 +320,9 @@ class TwitchAPIManager:
             mp_print.error("No token data found. Did you authenticate?")
             return False
         event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
-        app_token = await self.get_app_access_token()
+        app_token = await self.get_broadcaster_access_token()
         headers = {
-            "Client-ID": self.bot_client_id,
+            "Client-ID": self.broadcaster_client_id,
             "Authorization": f"Bearer {app_token}",
             "Content-Type": "application/json"
         }
@@ -475,7 +475,7 @@ class TwitchAPIManager:
         event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
         headers = {
             "Client-ID": self.broadcaster_client_id,
-            "Authorization": f"Bearer {await self.get_app_access_token()}",
+            "Authorization": f"Bearer {await self.get_broadcaster_access_token()}",
             "Content-Type": "application/json"
         }
         

@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify
-from bots.gpt_character import Character
+from core.utils import mp_print
+from core.shared_managers import barry_ai
 
 voice_routes = Blueprint("voice_routes", __name__)
-
-barry_ai = Character(character_name="Barry Braintree")
 
 @voice_routes.route('/voice/start', methods=["POST"])
 def start_voice_rec():

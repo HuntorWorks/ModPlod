@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from rich import print
 from openai import OpenAI
+from core.utils import mp_print
 
 
 class OpenAIManager:
@@ -18,12 +19,12 @@ class OpenAIManager:
     def respond_without_chat_history(self, message, gpt_model, temperature, max_tokens, system_message=None, send_system_message=False):
         response = None
         if system_message is None:
-            system_message = {""}
+            system_message = {"role": "system", "content": ""}
 
         if not message:
             print("[bold red]ERROR[/bold red]:  Didn't receive prompt.  Discontinuing process.")
             return
-
+        mp_print.debug(f"Sending message to GPT: {system_message} | {message}")
         if send_system_message:
             response = self.client.chat.completions.create(
                 model=gpt_model,
