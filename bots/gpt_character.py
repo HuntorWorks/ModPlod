@@ -25,6 +25,8 @@ class Character:
     CHARACTER_DATA = None
 
     def __init__(self, character_name, gpt_model="gpt-4o", max_tokens=150, gpt_temperature=0.7, debugging=False, event_handler=None):
+        import threading 
+        self.speak_lock = threading.Lock()
         self.CHARACTER_NAME = character_name
         self.chat_history_file = f"{self.CHARACTER_NAME}-ChatHistoryBackup.txt"
         self.chat_history_full_path = os.path.join(self.CONVERSATION_HISTORY_SAVE_DIR, self.chat_history_file)
@@ -98,16 +100,17 @@ class Character:
         return ai_response
 
     def speak(self, text):
-        mp_print.ai_response(f"{text}")
+        with self.speak_lock:
+            mp_print.ai_response(f"{text}")
 
-        self.set_visible()
-        self.text_to_speech_manager.text_to_speech(text, "male", self.CHARACTER_VOICE, self.CHARACTER_VOICE_REGION_CODE)
-        time.sleep(0.1)
+            self.set_visible()
+            self.text_to_speech_manager.text_to_speech(text, "male", self.CHARACTER_VOICE, self.CHARACTER_VOICE_REGION_CODE)
+            time.sleep(0.1)
 
-        self.start_text_and_jaw_animations(text)
+            self.start_text_and_jaw_animations(text)
 
-        self.OBS_WEBSOCKET_MANAGER.clear_source_text(self.CHARACTER_DATA["obs_speech_text_source"])
-        self.set_visible(False)
+            self.OBS_WEBSOCKET_MANAGER.clear_source_text(self.CHARACTER_DATA["obs_speech_text_source"])
+            self.set_visible(False)
 
     def set_visible(self, visible=True):
         self.OBS_WEBSOCKET_MANAGER.set_source_visibility(scene=self.CHARACTER_DATA["obs_main_scene_name"], source=self.CHARACTER_DATA["obs_scene"],visibilty=visible)
