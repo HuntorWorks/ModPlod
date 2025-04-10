@@ -34,7 +34,6 @@ class TwitchAIActionsManager:
             "timeout": 0,
             "unban": 0,
         }
-
     def send_twitch_message(self, message: str):
         from core.shared_managers import twitch_api_manager
         
@@ -340,7 +339,7 @@ class TwitchAIActionsManager:
                 return True
         return False
     
-    #POSSIBLE: Add per user cooldowns if it is needed.
+    #FUTURE: Add per user cooldowns if it is needed.
     def can_send_command(self, command: str) -> bool: 
         now = time.time()
         last_command_time = self.last_command_times.get(command, 0)

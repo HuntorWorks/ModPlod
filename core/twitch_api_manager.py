@@ -3,6 +3,7 @@ from twitchAPI.oauth import UserAuthenticator, refresh_access_token, validate_to
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage
 from core.utils import mp_print
+import requests
 from dotenv import load_dotenv
 import time, os, json, asyncio
 
@@ -35,8 +36,8 @@ class TwitchAPIManager:
             AuthScope.MODERATOR_MANAGE_SHOUTOUTS,
             AuthScope.CHANNEL_MANAGE_VIPS,
             AuthScope.WHISPERS_READ,
-            AuthScope.WHISPERS_EDIT 
-            ]
+            AuthScope.WHISPERS_EDIT
+        ]
         
         self.scopes_broadcaster = [
             AuthScope.CHANNEL_MANAGE_VIDEOS,
@@ -49,6 +50,7 @@ class TwitchAPIManager:
             AuthScope.MODERATOR_MANAGE_AUTOMOD,
             AuthScope.MODERATOR_MANAGE_SHOUTOUTS,
             AuthScope.CHANNEL_MANAGE_VIPS,
+            AuthScope.CHANNEL_READ_SUBSCRIPTIONS
             
         ]
         
@@ -57,11 +59,13 @@ class TwitchAPIManager:
         self.twitch_chat = None
         self.token_data_bot = None
         self.token_data_broadcaster = None
-
+        self.is_bot_authenticated = False
         self.twitch_bot_display_name = None
         
         self.twitch_ai_actions_manager = None
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
+
+        self.NGROK_URL = "https://b48f-86-24-211-32.ngrok-free.app"
     
     async def on_ready(self, ready_event: EventData):
         mp_print.sys_message("Twitch API Manager is ready")
@@ -95,30 +99,45 @@ class TwitchAPIManager:
     async def authenticate_bot(self):
         try: 
             self.twitch_bot = Twitch(self.bot_client_id, self.bot_client_secret)
-            await self.load_or_authenticate(self.twitch_bot, "bot_token_data.json", self.scopes_bot)
+            self.token_data_bot = await self.load_or_authenticate(self.twitch_bot, "bot_token_data.json", self.scopes_bot)
 
-            # NOTE: Used to verify which user is authenticated.
+            # Mark as authenticated if token exists
+            if self.token_data_bot:
+                self.is_bot_authenticated = True
+                mp_print.info(f"Bot token data assigned: {self.token_data_bot}")
+
+            # Validate user info after token is applied
             user_info = self.twitch_bot.get_users()
             async for u in user_info:
                 self.twitch_bot_user_id = u.id
                 self.twitch_bot_display_name = u.display_name
+
         except Exception as e:
             mp_print.error(f"Error authenticating twitch_bot: {e}")
 
+
     async def load_or_authenticate(self, twitch_instance, token_file, scopes): 
+        token_data = None
         if os.path.exists(token_file):
             token_data = self.load_token_data(token_file)
 
             if time.time() > token_data["expires_at"]:
                 mp_print.info("Token expired, refreshing...")
                 await self.refresh_token(token_file)
+                token_data = self.load_token_data(token_file)  # reload new token
 
             await twitch_instance.set_user_authentication(token_data["token"], scopes, token_data["refresh_token"])
+            return token_data
+
         else:
             auth = UserAuthenticator(twitch_instance, scopes, force_verify=True, url="http://localhost:17563", host="0.0.0.0", port=17563)
             token, refresh_token = await auth.authenticate()
             self.save_token_data(token_file, token, refresh_token)
+            token_data = self.load_token_data(token_file)
             await twitch_instance.set_user_authentication(token, scopes, refresh_token)
+
+        return token_data
+
 
     async def twitch_api_manager(self):
         mp_print.info("Starting twitch_api_manager...") 
@@ -126,6 +145,18 @@ class TwitchAPIManager:
             await self.authenticate_bot()
             await self.authenticate_broadcaster()
             mp_print.info("Twitch API Manager Authenticated")
+            # BUG: When restarting the bot, it doesn't always unsubscribe from all eventSubs resulting in 409 'subscription already exists'
+            # Unsubscribe from all eventSubs
+            mp_print.debug("Unsubscribing from all previouseventSubs")
+            await self.unsubscribe_all_eventsub()
+
+            # Subscribe to eventSubs
+            mp_print.debug("Subscribing to eventSubs")
+            await self.subscribe_to_eventsub_follow()
+            await self.subscribe_to_eventsub_subscribe()
+            await self.subscribe_to_eventsub_subscribe_gift()
+            await self.subscribe_to_eventsub_subscription_msg()
+
             # Create Chat Instance
             self.chat = await Chat(self.twitch_bot)
             self.register_events()
@@ -275,10 +306,205 @@ class TwitchAPIManager:
             return data  
 #endregion
 
-#region EVENT REGISTRATION
+#region CHAT EVENT REGISTRATION
     def register_events(self):
         self.chat.register_event(ChatEvent.READY, self.on_ready)
         self.chat.register_event(ChatEvent.MESSAGE, self.on_message)
 #endregion
     def set_actions_manager(self, actions_manager):
         self.twitch_ai_actions_manager = actions_manager
+
+# EVENTSUBS
+    async def subscribe_to_eventsub_follow(self):
+        if not self.is_bot_authenticated or not self.token_data_bot:
+            mp_print.error("No token data found. Did you authenticate?")
+            return False
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        app_token = await self.get_app_access_token()
+        headers = {
+            "Client-ID": self.bot_client_id,
+            "Authorization": f"Bearer {app_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "type": "channel.follow",
+            "version": "2",
+            "condition": {
+                "broadcaster_user_id": self.broadcaster_id,
+                "moderator_user_id" : self.broadcaster_id
+            },
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.NGROK_URL}/twitch/eventsub/callback/follow",
+                "secret": "modplod-secret"
+            }
+        }
+
+        response = requests.post(event_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 409 and "subscription already exists" in str(response_data):
+            mp_print.info("Follow event subscription already exists")
+            return True
+        elif response.status_code == 202:
+            mp_print.info("Successfully subscribed to follow events")
+            return True
+        else:
+            mp_print.error(f"Error subscribing to follow events: {response_data}")
+            return False
+    
+    async def subscribe_to_eventsub_subscribe(self):
+        if not self.is_bot_authenticated or not self.token_data_bot:
+            mp_print.error("No token data found. Did you authenticate?")
+            return False
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        app_token = await self.get_broadcaster_access_token()
+        headers = {
+            "Client-ID": self.broadcaster_client_id,
+            "Authorization": f"Bearer {app_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "type": "channel.subscribe",
+            "version": "1",
+            "condition": {
+                "broadcaster_user_id": self.broadcaster_id
+            },
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.NGROK_URL}/twitch/eventsub/callback/subscribe",
+                "secret": "modplod-secret"
+            }
+        }
+
+        response = requests.post(event_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 409 and "subscription already exists" in str(response_data):
+            mp_print.info("Subscribe event subscription already exists")
+            return True
+        elif response.status_code == 202:
+            mp_print.info("Successfully subscribed to subscribe events")
+            return True
+        else:
+            mp_print.error(f"Error subscribing to subscribe events: {response_data}")
+            return False
+
+    async def subscribe_to_eventsub_subscribe_gift(self):
+        if not self.is_bot_authenticated or not self.token_data_bot:
+            mp_print.error("No token data found. Did you authenticate?")
+            return False
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        app_token = await self.get_broadcaster_access_token()
+        headers = {
+            "Client-ID": self.broadcaster_client_id,
+            "Authorization": f"Bearer {app_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "type": "channel.subscription.gift",
+            "version": "1",
+            "condition": {
+                "broadcaster_user_id": self.broadcaster_id
+            }, 
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.NGROK_URL}/twitch/eventsub/callback/subscribe_gift",
+                "secret": "modplod-secret"
+            }
+        }
+
+        response = requests.post(event_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 409 and "subscription already exists" in str(response_data):
+            mp_print.info("Subscribe gift event subscription already exists")
+            return True
+        elif response.status_code == 202:
+            mp_print.info("Successfully subscribed to subscribe gift events")
+            return True
+        else:
+            mp_print.error(f"Error subscribing to subscribe gift events: {response_data}")
+            return False
+    
+    async def subscribe_to_eventsub_subscription_msg(self):
+        if not self.is_bot_authenticated or not self.token_data_bot:
+            mp_print.error("No token data found. Did you authenticate?")
+            return False
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        app_token = await self.get_broadcaster_access_token()
+        headers = {
+            "Client-ID": self.broadcaster_client_id,
+            "Authorization": f"Bearer {app_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "type": "channel.subscription.message",
+            "version": "1",
+            "condition": {
+                "broadcaster_user_id": self.broadcaster_id
+            }, 
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.NGROK_URL}/twitch/eventsub/callback/subscription_msg",
+                "secret": "modplod-secret"
+            }
+        }
+
+        response = requests.post(event_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 409 and "subscription already exists" in str(response_data):
+            mp_print.info("Subscription message event subscription already exists")
+            return True
+        elif response.status_code == 202:
+            mp_print.info("Successfully subscribed to subscription message events")
+            return True
+        else:
+            mp_print.error(f"Error subscribing to subscription message events: {response_data}")
+            return False
+
+    async def subscribe_to_eventsub_raid(self):
+        pass
+    
+    async def unsubscribe_all_eventsub(self):
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        headers = {
+            "Client-ID": self.broadcaster_client_id,
+            "Authorization": f"Bearer {await self.get_app_access_token()}",
+            "Content-Type": "application/json"
+        }
+        
+        get_response = requests.get(event_url, headers=headers)
+        subscriptions = get_response.json()
+        
+        if "data" not in subscriptions or not subscriptions["data"]:
+            mp_print.info("No active eventSubs found to unsubscribe from")
+            return True
+            
+        for sub in subscriptions["data"]:
+            sub_id = sub.get("id")
+            if sub_id:
+                delete_response = requests.delete(f"{event_url}?id={sub_id}", headers=headers)
+                if delete_response.status_code == 204:
+                    mp_print.info(f"Successfully unsubscribed from eventSub: {sub_id}")
+                else:
+                    mp_print.error(f"Failed to unsubscribe from eventSub {sub_id}: {delete_response.json()}")
+        
+        mp_print.info(f"Unsubscribed from {len(subscriptions['data'])} eventSubs")
+        return True
+    
+    async def get_app_access_token(self):
+        await self.twitch_bot.authenticate_app([])
+        app_token = self.twitch_bot.get_app_token()
+        return app_token
+    
+    async def get_broadcaster_access_token(self):
+        await self.twitch_broadcaster.authenticate_app([])
+        broadcaster_token = self.twitch_broadcaster.get_app_token()
+        return broadcaster_token
+    

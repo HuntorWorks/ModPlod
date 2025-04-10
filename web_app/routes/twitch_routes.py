@@ -58,3 +58,90 @@ def update_character_settings():
 @twitch_routes.route('/twitch/moderation', methods=["POST"])
 def twitch_moderation():
     pass
+
+@twitch_routes.route('/twitch/eventsub/callback', methods=["POST"])
+def twitch_eventsub_callback():
+    data = request.json
+    return jsonify({"status": "success", "message": "Event received"})
+
+@twitch_routes.route('/twitch/eventsub/callback/follow', methods=["POST"])
+def twitch_eventsub_callback_follow():
+    data = request.get_json(force=True)
+    print(data)
+
+    # 🔒 Respond to Twitch verification
+    if "challenge" in data:
+        return data["challenge"], 200, {'Content-Type': 'text/plain'}
+
+    # ✅ Real follow event payload
+    if "event" in data:
+        user = data["event"].get("user_name", "unknown")
+        mp_print.info(f"🎉 New follower: {user}")
+
+    return jsonify({"status": "ok"}), 200
+
+@twitch_routes.route('/twitch/eventsub/callback/subscribe', methods=["POST"])
+def twitch_eventsub_callback_subscribe():
+    data = request.get_json(force=True)
+
+    if "challenge" in data:
+        return data["challenge"], 200, {'Content-Type': 'text/plain'}
+    
+    if "event" in data:
+        user = data["event"].get("user_name", "unknown")
+        mp_print.info(f"🎉 New subscriber: {user}")
+        subscription_tier = data["event"].get("tier", "unknown")
+        mp_print.info(f"🎉 New subscription tier: {subscription_tier}")
+        is_gift_sub = data["event"].get("is_gift", "unknown")
+        mp_print.info(f"🎉 Gifted: {is_gift_sub}") 
+        
+    return jsonify({"status": "ok"}), 200
+
+@twitch_routes.route('/twitch/eventsub/callback/subscribe_gift', methods=["POST"])
+def twitch_eventsub_callback_subscribe_gift():
+    data = request.get_json(force=True)
+    print(data)
+
+    if "challenge" in data:
+        return data["challenge"], 200, {'Content-Type': 'text/plain'}
+    
+    if "event" in data:
+        user = data["event"].get("user_name", "unknown")
+        mp_print.info(f"🎉 New subscriber: {user}")
+        tier = data["event"].get("tier", "unknown")
+        mp_print.info(f"🎉 New subscription tier: {tier}")
+        gift_count = data["event"].get("total", 0)
+        total_gifts_count = data["event"].get("cumulative_total", 0)
+        mp_print.info(f"🎉 Has gifted {gift_count} subscriptions, and has gifted {total_gifts_count} subscriptions in total")
+
+
+    return jsonify({"status": "ok"}), 200
+
+@twitch_routes.route('/twitch/eventsub/callback/subscription_msg', methods=["POST"])
+def twitch_eventsub_callback_subscription_msg():
+    data = request.get_json(force=True)
+    print(data)
+
+    if "challenge" in data:
+        return data["challenge"], 200, {'Content-Type': 'text/plain'}
+    
+    if "event" in data:
+        user = data["event"].get("user_name", "unknown")
+        mp_print.info(f"🎉 New subscription message: {user}")
+        message = data["event"].get("message", "unknown")
+        message_text = message["text"]
+        mp_print.info(f"🎉 New subscription message: {message_text}")
+
+    return jsonify({"status": "ok"}), 200
+
+
+#ADMIN ROUTES
+
+@twitch_routes.route('/twitch/admin/subscribe_to_eventsub_follow', methods=["POST"])
+def twitch_admin_subscribe_to_eventsub_follow():
+    result = run_async_tasks(twitch_api_manager.subscribe_to_eventsub_follow())
+
+    if result is False:
+        return jsonify({"status": "error", "message": "Failed to subscribe to eventsub follow"}), 500   
+    return jsonify({"status": "success", "message": "Event subscribed"})
+
