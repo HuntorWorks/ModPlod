@@ -98,7 +98,7 @@ class Character:
         self.GPT_RESPONSE_TOKEN_COUNT = self.get_num_tokens_per_string(ai_response)
 
         return ai_response
-
+#FUTURE: Instead of thread locking, turn into queue system with a queue manager
     def speak(self, text):
         with self.speak_lock:
             mp_print.ai_response(f"{text}")

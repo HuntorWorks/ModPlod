@@ -1,9 +1,11 @@
 from core.utils import mp_print
 import hashlib
+from core.shared_managers import twitch_api_manager
 
 class BarryAIEventHandler:
     def __init__(self, character):
         self.character = character
+        
         mp_print.debug("initializing Barry Event Handler loaded {self.character}")
 
         self.last_follow_event = {}
@@ -51,3 +53,66 @@ class BarryAIEventHandler:
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has sent a message when they subscribed to BeerHuntor's channel it said: {payload.get('message')}"
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
         self.character.speak(response)
+
+class BarryAIHandler:
+    def __init__(self, character):
+        self.character = character
+        self.twitch_api_manager = twitch_api_manager
+        self.recent_hashes = set()
+        self.static_triggers = { 
+            "follow me" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "here is my discord username" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "adding me on discord" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "request on discord" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+        }
+        self.regex_triggers = {
+            {"pattern": r"(https?:\/\/)?(www\.)?(discord\.gg|discord\.com\/invite)", "action": "timeout", "reason": "Discord link", "duration": 60},
+            {"pattern": r"([a-zA-Z])\1{4,}", "action": "timeout", "reason": "Stop spamming", "duration": 20},
+            {"pattern": r"(https?:\/\/|www\.)[^\s]+", "action": "timeout", "reason": "Posting links is not allowed", "duration": 30}
+        }
+
+    def on_message_received(self, payload: dict):
+        try: 
+            message_content = payload.get('message')
+            user_name = payload.get('user_name')
+            user_id = payload.get('user_id')
+            
+            if self.check_auto_mod(message_content, user_id):
+                self.character.speak(f"Hey {user_name}, please don't post links or spam in chat. Thanks!")
+
+        except ValueError:
+            mp_print.error("Error processing message: {payload}")
+            return
+        
+    def check_auto_mod(self, message_content: str, user_id: str) -> bool:
+        import re
+        message_lower = message_content.lower()
+
+        #Check against static triggers
+        for phrase, trigger in self.static_triggers.items():
+            if phrase in message_lower:
+                self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
+                return True
+
+        #Check against regex triggers
+        for trigger in self.regex_triggers:
+            if re.search(trigger["pattern"], message_lower):
+                self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
+                return True
+        return False

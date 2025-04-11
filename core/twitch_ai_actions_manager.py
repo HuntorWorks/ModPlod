@@ -4,6 +4,7 @@ import datetime
 from dotenv import load_dotenv
 from core.utils import run_async_tasks
 from core.utils import mp_print, get_str_from_args
+from core.shared_managers import barry_ai_event_handler
 
 ## INFO: This class is responsible for handling the AI actions for the Twitch API. Any calls made within the code should call here.
 
@@ -264,6 +265,13 @@ class TwitchAIActionsManager:
         mp_print.debug(f"Processing twitch chat: {message_content}")
         if message_content.startswith("!"):
             self.process_twitch_command(message_content, user_name, user_id)
+        else:
+            payload = { 
+                "message": message_content,
+                "user_name": user_name,
+                "user_id": user_id
+            }
+            barry_ai_event_handler.on_message_received(payload)
 
     def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
         command = message_content.split(" ")[0].lower()
