@@ -1,39 +1,34 @@
 import os
-import time
 import datetime
 from dotenv import load_dotenv
-from core.utils import run_async_tasks
-from core.utils import mp_print, get_str_from_args
+from core.utils import run_async_tasks, mp_print
+from bots.chat_bot.twitch_chat_command_manager import TwitchChatCommandManager
 
-## INFO: This class is responsible for handling the AI actions for the Twitch API. Any calls made within the code should call here.
+## INFO: This class is responsible for handling the responses from the Twitch Chat bot, from cmds made in chat. 
 
-class TwitchAIActionsManager:
+class TwitchChatActionsManager:
     def __init__(self):
         load_dotenv()
         mp_print.info("Twitch AI Actions Manager initialized")
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
+        self.COMMAND_MANAGER = TwitchChatCommandManager(self)
 
-        self.command_cooldowns = {
-            "clip": 10,
-            "so": 10,
-            "followage": 10,
-            "title": 10,
-            "game": 10,
-            "ban": 5,
-            "timeout": 5,
-            "unban": 10,
-        }
+    ## Reads twitch chat and distributes it where needed if needed. 
+    def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
+        mp_print.debug(f"Processing twitch chat: {message_content}")
+        if message_content.startswith("!"):
+            self.COMMAND_MANAGER.process_twitch_command(message_content, user_name, user_id)
+        else:
+            payload = { 
+                "message": message_content,
+                "user_name": user_name,
+                "user_id": user_id
+            }
+            if self.barry_ai_event_handler is not None:
+                self.barry_ai_event_handler.on_message_received(payload)
+            else: 
+                mp_print.error(f"Barry AI Event Handler is set to: {self.barry_ai_event_handler}")
 
-        self.last_command_times = {
-            "clip": 0,
-            "so": 0,
-            "followage": 0,
-            "title": 0,
-            "game": 0,
-            "ban": 0,
-            "timeout": 0,
-            "unban": 0,
-        }
     def send_twitch_message(self, message: str):
         from core.shared_managers import twitch_api_manager
         
@@ -44,6 +39,14 @@ class TwitchAIActionsManager:
         except Exception as e:
             mp_print.error(f"Error sending message: {e}")
 
+    ## FUTURE: NOT YET IMPLEMENTED
+    def send_twitch_whisper(self, user: str, message: str):
+        pass
+    ## FUTURE: NOT YET IMPLEMENTED
+    def send_twitch_whisper_to_all(self, message: str):
+        pass
+
+    ## GENERAL COMMAND EXECUTIONS
     def generate_twitch_clip(self, user_name: str):
         from core.shared_managers import twitch_api_manager
 
@@ -66,6 +69,25 @@ class TwitchAIActionsManager:
             mp_print.error(f"Error generating clip: {e}")
             self.send_twitch_message(f"Sorry @{user_name}, I couldn't generate a clip: {str(e)}")
 
+    def send_twitch_followage(self, user_name: str, user_id: str):
+        from core.shared_managers import twitch_api_manager
+        try:
+            async def get_followage():
+                broadcaster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)   
+                user = await twitch_api_manager.get_channel_followers(user_id=user_id, broadcaster_id=broadcaster_id)
+                return user
+            followers = run_async_tasks(get_followage())
+
+            if followers and hasattr(followers, 'data') and len(followers.data) > 0:
+                self.send_twitch_message(f"@{user_name} has been following for {self.format_duration(followers.data[0].followed_at)}!")
+            else:
+                self.send_twitch_message(f"@{user_name} is not following the channel.")
+
+        except Exception as e:
+            mp_print.error(f"Error getting followage: {e}")
+            self.send_twitch_message(f"Sorry @{user_name}, I couldn't get your followage information.")
+
+    ## MODERATION COMMAND EXECUTIONS
     def send_twitch_shoutout(self, args: list, user_name: str):
         from core.shared_managers import twitch_api_manager
         if len(args) == 0:
@@ -92,30 +114,6 @@ class TwitchAIActionsManager:
             last_streamed_game = "unknown"
 
         self.send_twitch_message(f"Shoutout to @{broadcaster_name}! Go and check out their channel! They were last streaming {last_streamed_game}.")
-
-    def send_twitch_whisper(self, user: str, message: str):
-        pass
-    
-    def send_twitch_followage(self, user_name: str, user_id: str):
-        from core.shared_managers import twitch_api_manager
-        try:
-            async def get_followage():
-                broadcaster_id = await twitch_api_manager.get_broadcast_id_from_name(self.TWITCH_TARGET_CHANNEL)   
-                user = await twitch_api_manager.get_channel_followers(user_id=user_id, broadcaster_id=broadcaster_id)
-                return user
-            followers = run_async_tasks(get_followage())
-
-            if followers and hasattr(followers, 'data') and len(followers.data) > 0:
-                self.send_twitch_message(f"@{user_name} has been following for {self.format_duration(followers.data[0].followed_at)}!")
-            else:
-                self.send_twitch_message(f"@{user_name} is not following the channel.")
-
-        except Exception as e:
-            mp_print.error(f"Error getting followage: {e}")
-            self.send_twitch_message(f"Sorry @{user_name}, I couldn't get your followage information.")
-
-    def send_twitch_whisper_to_all(self, message: str):
-        pass
 
     def send_twitch_ban_user(self, user_name: str, user_to_ban: str, reason: str):
         from core.shared_managers import twitch_api_manager
@@ -220,6 +218,7 @@ class TwitchAIActionsManager:
             self.send_twitch_message(f"Sorry, I couldn't set the channel game to {game}.")
 
     
+    ## HELPER FUNCTIONS
     def days_to_readable_format(self, total_days):
         """Convert total days to readable format with years, months, and days"""
         years = total_days // 365
@@ -243,87 +242,13 @@ class TwitchAIActionsManager:
             
         return result
     
-    def parse_timeout_command(self, args: list):
-        try:
-            user = args[0] # user to timeout
-            duration = int(args[-1])
-        except ValueError:
-            raise ValueError("Invalid command format. Must be !timeout <user> <reason> <duration>")
-        reason = get_str_from_args(args[1:-1])
-
-        return user, reason, duration
-
     def format_duration(self, follow_date: datetime) -> str:
         follow_date = follow_date.replace(tzinfo=datetime.timezone.utc)
         current_date = datetime.datetime.now(datetime.timezone.utc)
         difference = current_date - follow_date
         return self.days_to_readable_format(difference.days)
     
-
-    def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
-        mp_print.debug(f"Processing twitch chat: {message_content}")
-        if message_content.startswith("!"):
-            self.process_twitch_command(message_content, user_name, user_id)
-        else:
-            payload = { 
-                "message": message_content,
-                "user_name": user_name,
-                "user_id": user_id
-            }
-            if self.barry_ai_event_handler is not None:
-                self.barry_ai_event_handler.on_message_received(payload)
-            else: 
-                mp_print.error(f"Barry AI Event Handler is set to: {self.barry_ai_event_handler}")
-
-    def process_twitch_command(self, message_content: str, user_name: str, user_id: str):
-        command = message_content.split(" ")[0].lower()
-        args = message_content.split(" ")[1:]
-        if command == "!clip":
-            if self.can_send_command("clip"):
-                self.generate_twitch_clip(user_name)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only clip once every {self.command_cooldowns['clip']} seconds.")
-        if command == "!so" or command == "!shoutout":
-            if self.can_send_command("so"):
-                self.send_twitch_shoutout(args, user_name=None)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only shoutout once every {self.command_cooldowns['so']} seconds.")
-        if command == "!followage":
-            if self.can_send_command("followage"):
-                self.send_twitch_followage(user_name, user_id)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only get followage once every {self.command_cooldowns['followage']} seconds.")
-        if command == "!title":
-            title = get_str_from_args(args)
-            if self.can_send_command("title"):
-                self.set_twitch_channel_title(user_name, title=title)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only change the title once every {self.command_cooldowns['title']} seconds.")
-        if command == "!game":
-            game = get_str_from_args(args)
-            if self.can_send_command("game"):
-                self.set_twitch_channel_game(user_name, game=game)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only change the game once every {self.command_cooldowns['game']} seconds.")
-        if command == "!ban":
-            user_to_ban = args[0]
-            reason = get_str_from_args(args[1:])
-            if self.can_send_command("ban"):
-                self.send_twitch_ban_user(user_name, user_to_ban, reason=reason)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only ban once every {self.command_cooldowns['ban']} seconds.")
-        if command == "!timeout":
-            user_to_timeout, reason, duration = self.parse_timeout_command(args)
-            if self.can_send_command("timeout"):
-                self.send_twitch_timeout_user(user_name=user_name, user_to_timeout=user_to_timeout, reason=reason, duration=duration)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only timeout once every {self.command_cooldowns['timeout']} seconds.")
-        if command == "!unban":
-            user_to_unban = args[0]
-            if self.can_send_command("unban"):
-                self.send_twitch_unban_user(user_name=user_name, user_to_unban=user_to_unban)
-            else:
-                self.send_twitch_message(f"Sorry {user_name}, you can only unban once every {self.command_cooldowns['unban']} seconds.")
+  ## OLD METHOD HERE
 
     async def is_broadcaster_or_moderator(self, user_name: str):
         from core.shared_managers import twitch_api_manager
@@ -347,17 +272,6 @@ class TwitchAIActionsManager:
         async for user in banned_users:
             if user.user_id == user_id: 
                 return True
-        return False
-    
-    #FUTURE: Add per user cooldowns if it is needed.
-    def can_send_command(self, command: str) -> bool: 
-        now = time.time()
-        last_command_time = self.last_command_times.get(command, 0)
-        cooldown = self.command_cooldowns.get(command, 0)
-
-        if now - last_command_time >= cooldown:
-            self.last_command_times[command] = now
-            return True
         return False
     
     def set_event_handler(self, barry_ai_event_handler):

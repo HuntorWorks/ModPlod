@@ -91,6 +91,7 @@ class BarryAIHandler:
             {"pattern": r"(https?:\/\/|www\.)[^\s]+", "action": "timeout", "reason": "Posting links is not allowed", "duration": 30}
         ]
 
+    # Processes and captures every message sent in twitch chat.
     def on_message_received(self, payload: dict):
         try: 
             message_content = payload.get('message')

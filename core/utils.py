@@ -59,7 +59,7 @@ class mp_print:
     def error(message):
         print(f"[red][ModPlod-ERROR][/red]: {message}")
 
-    def mic_input(message):
+    def gpt_input(message):
         print(f"[bright_cyan][ModPlod-INPUT][/bright_cyan][white]:[/white][bright_cyan] {message}")
 
     def ai_response(message):

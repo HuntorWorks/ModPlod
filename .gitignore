@@ -1,5 +1,7 @@
 .idea/
 .venv/
+.venv_py313/
+.venv_py312/
 .env
 .vscode/*
 bots/conversation_histories/Barry Braintree-ConversationHistoryBackup.txt

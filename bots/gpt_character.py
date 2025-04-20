@@ -77,7 +77,7 @@ class Character:
             if mic_text == " ":
                 mp_print.error("Could not detect your input from your mic!")
 
-            mp_print.mic_input(mic_text)
+            mp_print.gpt_input(mic_text)
         else:
             mic_text = "Hello there, did you know that whales have the smallest brains in the world.  And that I love grass!"
 
