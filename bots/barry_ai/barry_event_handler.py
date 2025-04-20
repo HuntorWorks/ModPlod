@@ -1,7 +1,5 @@
 from core.utils import mp_print
 import hashlib
-from core.shared_managers import twitch_api_manager
-
 class BarryAIEventHandler:
     def __init__(self, character):
         self.character = character
@@ -15,6 +13,7 @@ class BarryAIEventHandler:
         You are present and active on BeerHuntor's twitch channel.
         Give a direct response to the following message without emojis or prefix/suffix as though you were having a conversation with the user.
         Include the user's name and what they have done (subscribed, followed, gifted, etc) in your response, with the particulars (tier, number of gifts, etc)
+        Respond in character including taking the piss out of BeerHuntor if it fits. 
         """
 
     def on_twitch_follow_event(self, payload: dict):
@@ -54,8 +53,13 @@ class BarryAIEventHandler:
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
         self.character.speak(response)
 
+    def on_twitch_raid_event(self, payload : dict): 
+        prompt = f"{self.context_prompt}, Message: {payload.get('raiding_user')} has just raiding BeerHuntors channel, with {payload.get('raiding_viewers')}"
+        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        self.character.speak(response)
+
 class BarryAIHandler:
-    def __init__(self, character):
+    def __init__(self, character, twitch_api_manager):
         self.character = character
         self.twitch_api_manager = twitch_api_manager
         self.recent_hashes = set()
@@ -80,12 +84,12 @@ class BarryAIHandler:
                 "reason": "Self-promo", 
                 "duration": 30
                 },
-        }
-        self.regex_triggers = {
+        },
+        self.regex_triggers = [
             {"pattern": r"(https?:\/\/)?(www\.)?(discord\.gg|discord\.com\/invite)", "action": "timeout", "reason": "Discord link", "duration": 60},
             {"pattern": r"([a-zA-Z])\1{4,}", "action": "timeout", "reason": "Stop spamming", "duration": 20},
             {"pattern": r"(https?:\/\/|www\.)[^\s]+", "action": "timeout", "reason": "Posting links is not allowed", "duration": 30}
-        }
+        ]
 
     def on_message_received(self, payload: dict):
         try: 

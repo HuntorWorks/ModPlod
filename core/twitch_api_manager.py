@@ -65,7 +65,7 @@ class TwitchAPIManager:
         self.twitch_ai_actions_manager = None
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
-        self.NGROK_URL = "https://b48f-86-24-211-32.ngrok-free.app"
+        self.NGROK_URL = "https://9450-86-24-211-32.ngrok-free.app"
     
     async def on_ready(self, ready_event: EventData):
         mp_print.sys_message("Twitch API Manager is ready")
@@ -156,6 +156,7 @@ class TwitchAPIManager:
             await self.subscribe_to_eventsub_subscribe_gift()
             await self.subscribe_to_eventsub_subscription_msg()
             await self.subscribe_to_eventsub_follow()
+            await self.subscribe_to_eventsub_raid()
 
             # Create Chat Instance
             self.chat = await Chat(self.twitch_bot)
@@ -469,7 +470,43 @@ class TwitchAPIManager:
             return False
 
     async def subscribe_to_eventsub_raid(self):
-        pass
+        if not self.is_bot_authenticated or not self.token_data_bot:
+            mp_print.error("No token data found. Did you authenticate?")
+            return False
+        event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
+        app_token = await self.get_broadcaster_access_token()
+        headers = {
+            "Client-ID": self.broadcaster_client_id,
+            "Authorization": f"Bearer {await self.get_broadcaster_access_token()}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "type": "channel.raid",
+            "version": "1",
+            "condition": {
+                "to_broadcaster_user_id": self.broadcaster_id
+            }, 
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.NGROK_URL}/twitch/eventsub/callback/incoming_raid",
+                "secret": "modplod-secret"
+            }
+        }
+
+        response = requests.post(event_url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code == 409 and "subscription already exists" in str(response_data):
+            mp_print.info("Incoming raid event subscription already exists")
+            return True
+        elif response.status_code == 202:
+            mp_print.info("Successfully subscribed to incoming raid events")
+            return True
+        else:
+            mp_print.error(f"Error subscribing to incoming raid events: {response_data}")
+            return False
+
     
     async def unsubscribe_all_eventsub(self):
         event_url = "https://api.twitch.tv/helix/eventsub/subscriptions"

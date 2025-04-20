@@ -137,6 +137,21 @@ def twitch_eventsub_callback_subscription_msg():
 
     return jsonify({"status": "ok"}), 200
 
+@twitch_routes.route('/twitch/eventsub/callback/incoming_raid', methods=["POST"])
+def twitch_eventsub_callback_incoming_raid(): 
+    data = request.get_json(force=True)
+    print(data)
+
+    if "event" in data: 
+        payload = { 
+            "raiding_user": data["event"].get("from_broadcaster_user_name", "unknown"),
+            "raiding_viewers": data["event"].get("viewers", "unknown") 
+        }
+        barry_ai_event_handler.on_twitch_raid_event(payload)
+    else : 
+        return jsonify ({"status": "failed no event found"})
+    return jsonify({"status": "ok"}), 200
+
 #region ADMIN ROUTES
 @twitch_routes.route('/twitch/admin/subscribe_to_eventsub_follow', methods=["POST"])
 def twitch_admin_subscribe_to_eventsub_follow():

@@ -1,8 +1,13 @@
 .idea/
 .venv/
 .env
+.vscode/*
+bots/conversation_histories/Barry Braintree-ConversationHistoryBackup.txt
+bot_token_data.json
+broadcaster_token_data.json
 /__pycache__/*
 bots/__pycache__/
+bots/barry_ai/__pycache__/
 core/__pycache__/
 web_app/routes/__pycache__/
 bots/characters/__pycache__/

@@ -15,8 +15,9 @@ openai_manager = OpenAIManager()
 barry_ai = Character("Barry Braintree")
 mp_print.debug(f"Barry AI loaded: {barry_ai}")
 barry_ai_event_handler = BarryAIEventHandler(barry_ai)
-barry_ai_handler = BarryAIHandler(barry_ai) 
+barry_ai_handler = BarryAIHandler(barry_ai, twitch_api_manager) 
 
 
 twitch_api_manager.set_actions_manager(twitch_ai_actions_manager)
+twitch_ai_actions_manager.set_event_handler(barry_ai_event_handler)
 
