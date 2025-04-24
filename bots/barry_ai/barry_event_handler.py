@@ -15,6 +15,7 @@ class BarryAIEventHandler:
         Respond in character including taking the piss out of BeerHuntor if it fits. 
         """
 
+
     async def on_twitch_follow_event(self, payload: dict):
         import json
         raw_event = json.dumps(payload, sort_keys=True).encode("utf-8")
@@ -112,7 +113,7 @@ class BarryAIHandler:
             return
         
     def check_auto_mod(self, message_content: str, user_id: str) -> bool:
-        return false
+        return False
         import re
         message_lower = message_content.lower()
 

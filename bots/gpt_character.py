@@ -5,6 +5,7 @@ from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
 from core.utils import mp_print, extract_string_from_position
+from core.constants import APP_MODE, Mode
 from enum import Enum
 import asyncio
 import os
@@ -128,6 +129,8 @@ class Character:
         return mic_text
 
     async def get_gpt_string_response(self, msg_to_respond, chat_history=True):
+        if APP_MODE == Mode.DEV : 
+            return "This is a fake GPT response for dev testing"
         # Get a response from GPT
         self.GPT_RESPONSE_TOKEN_COUNT = 0 # reset it from the last attempt
 
@@ -148,6 +151,10 @@ class Character:
     
 #FUTURE: Instead of thread locking, turn into queue system with a queue manager
     def speak(self, text):
+        if APP_MODE == Mode.DEV : 
+            mp_print.debug(f"[DEV] Speak Muted {text}")
+            return
+
         with self.speak_lock:
             mp_print.ai_response(f"{text}")
 

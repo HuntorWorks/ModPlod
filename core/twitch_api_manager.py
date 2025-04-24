@@ -3,6 +3,7 @@ from twitchAPI.oauth import UserAuthenticator, refresh_access_token, validate_to
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage
 from core.utils import mp_print
+from core.constants import NGROK_DEV_TUNNEL_URL, NGROK_LIVE_TUNNEL_URL, APP_MODE, Mode
 import requests
 from dotenv import load_dotenv
 import time, os, json, asyncio
@@ -65,7 +66,7 @@ class TwitchAPIManager:
         self.twitch_ai_actions_manager = None
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
-        self.NGROK_URL = "https://144c-86-24-211-32.ngrok-free.app"
+        self.NGROK_URL = NGROK_LIVE_TUNNEL_URL if APP_MODE == Mode.LIVE else NGROK_DEV_TUNNEL_URL
     
     async def on_ready(self, ready_event: EventData):
         mp_print.sys_message("Twitch API Manager is ready")
