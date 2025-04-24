@@ -1,12 +1,10 @@
 from core.utils import mp_print
 from bots.gpt_character import MessageQueue
-import hashlib
+import hashlib, asyncio
 class BarryAIEventHandler:
     def __init__(self, character):
         self.character = character
         
-        mp_print.debug("initializing Barry Event Handler loaded {self.character}")
-
         self.last_follow_event = {}
         self.recent_follow_hashes = set()
 
@@ -17,7 +15,7 @@ class BarryAIEventHandler:
         Respond in character including taking the piss out of BeerHuntor if it fits. 
         """
 
-    def on_twitch_follow_event(self, payload: dict):
+    async def on_twitch_follow_event(self, payload: dict):
         import json
         raw_event = json.dumps(payload, sort_keys=True).encode("utf-8")
         event_hash = hashlib.sha256(raw_event).hexdigest()
@@ -27,12 +25,12 @@ class BarryAIEventHandler:
             return
         self.recent_follow_hashes.add(event_hash)
 
-
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has followed BeerHuntor's channel."
-        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
+        response = await self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
-    def on_twitch_subscribe_event(self, payload: dict):
+    async def on_twitch_subscribe_event(self, payload: dict):
         if payload.get('subscription_tier') == "1000":
             tier = "Tier 1"
         elif payload.get('subscription_tier') == "2000":
@@ -40,24 +38,28 @@ class BarryAIEventHandler:
         else:
             tier = "Tier 3"
 
-        prompt = f"{self.context_prompt}, Message: {payload.get('user') } has subscribed to BeerHuntor's channel, at tier {tier}."
-        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
+        prompt = f"{self.context_prompt}, Message: {payload.get('user')} has subscribed to BeerHuntor's channel, at tier {tier}."
+        response = await self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
-    def on_twitch_subscribe_gift_event(self, payload: dict):
-        prompt = f"{self.context_prompt}, Message: {payload.get('user') } has gifted {payload.get('gift_count')} subscriptions to BeerHuntor's channel. They have gifted {payload.get('total_gifts_count')} subscriptions in total."
-        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
+    async def on_twitch_subscribe_gift_event(self, payload: dict):
+        prompt = f"{self.context_prompt}, Message: {payload.get('user')} has gifted {payload.get('gift_count')} subscriptions to BeerHuntor's channel. They have gifted {payload.get('total_gifts_count')} subscriptions in total."
+        response = await self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
-    def on_twitch_subscription_message_event(self, payload: dict):
-        prompt = f"{self.context_prompt}, Message: {payload.get('user') } has sent a message when they subscribed to BeerHuntor's channel it said: {payload.get('message')}"
-        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
+    async def on_twitch_subscription_message_event(self, payload: dict):
+        prompt = f"{self.context_prompt}, Message: {payload.get('user')} has sent a message when they subscribed to BeerHuntor's channel it said: {payload.get('message')}"
+        response = await self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
-    def on_twitch_raid_event(self, payload : dict): 
-        prompt = f"{self.context_prompt}, Message: {payload.get('raiding_user')} has just raiding BeerHuntors channel, with {payload.get('raiding_viewers')}"
-        response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.add_to_queue(MessageQueue.RAID, response)
+    async def on_twitch_raid_event(self, payload : dict): 
+        prompt = f"{self.context_prompt}, Message: {payload.get('raiding_user')} has just raiding BeerHuntors channel, with {payload.get('raiding_viewers')} viewers"
+        response = await self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
 class BarryAIHandler:
     def __init__(self, character, twitch_api_manager):
@@ -110,6 +112,7 @@ class BarryAIHandler:
             return
         
     def check_auto_mod(self, message_content: str, user_id: str) -> bool:
+        return false
         import re
         message_lower = message_content.lower()
 

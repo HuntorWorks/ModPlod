@@ -4,13 +4,23 @@ from core.openai_manager import OpenAIManager
 from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
-from core.utils import mp_print
+from core.utils import mp_print, extract_string_from_position
+from enum import Enum
+import asyncio
 import os
 import tiktoken 
 import time
 import json
 
 CHARACTER_JSON_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "characters.json"))
+
+class MessageQueue(Enum) : 
+        MOD = "mod"
+        TEXT_TO_SPEECH = "tts"
+        RAID = "raid"
+        FOLLOW_SUB = "follow_sub"
+        REDEEM = "redeem"
+        DEFAULT = "default"
 class Character:
 
     CONVERSATION_HISTORY_SAVE_DIR = os.path.abspath(os.path.join(os.path.join(__file__, ".."), "conversation_histories"))
@@ -23,6 +33,8 @@ class Character:
     USER_REQUEST_TOKEN_COUNT = 0
     GPT_RESPONSE_TOKEN_COUNT = 0
     CHARACTER_DATA = None
+
+
 
     def __init__(self, character_name, gpt_model="gpt-4o", max_tokens=150, gpt_temperature=0.7, debugging=False, event_handler=None):
         import threading 
@@ -50,10 +62,43 @@ class Character:
         self.text_to_speech_manager = TextToSpeechManager()
         self.event_handler = event_handler
 
+        self.messages_in_queue = 0
+        self.message_queues = { 
+            "tts" : asyncio.Queue(),
+            "mod" : asyncio.Queue(),
+            "raid" : asyncio.Queue(),
+            "follow_sub": asyncio.Queue(),
+            "redeem" : asyncio.Queue(), 
+            "default" : asyncio.Queue(),
+        }
+
+        self.queue_poll_order = { 
+            MessageQueue.MOD,
+            MessageQueue.FOLLOW_SUB,
+            MessageQueue.TEXT_TO_SPEECH,
+            MessageQueue.REDEEM, 
+            MessageQueue.RAID,
+            MessageQueue.DEFAULT
+        }
+
+
         try:
             self.char_animation_manager = AnimationManager(self.OBS_WEBSOCKET_MANAGER, self.audio_manager, self.CHARACTER_DATA)
         except ValueError:
             mp_print.error(f"Animation manager could not be set. Character Data = {self.CHARACTER_DATA}")
+    
+    async def start(self):
+        self.queue_task = asyncio.create_task(self.process_queue_loop())
+        self.queue_task.add_done_callback(self._log_queue_crash)
+
+    def _log_queue_crash(self, task): 
+        try:
+            task.result()
+        except Exception as e: 
+            mp_print.error(f"Queue task crashed: {e}")
+            import traceback
+            traceback.print_exc
+
 
     def load_character(self):
 
@@ -67,7 +112,6 @@ class Character:
         
         with open(full_path, "r") as file:
             self.FIRST_SYSTEM_MESSAGE = file.read()
-            mp_print.debug(f"Loaded first system message: {self.FIRST_SYSTEM_MESSAGE}")
             self.add_to_chat_history()
 
     def handle_mic_input(self, stop_recording_key):
@@ -83,21 +127,25 @@ class Character:
 
         return mic_text
 
-    def get_gpt_string_response(self, msg_to_respond, chat_history=True):
+    async def get_gpt_string_response(self, msg_to_respond, chat_history=True):
         # Get a response from GPT
         self.GPT_RESPONSE_TOKEN_COUNT = 0 # reset it from the last attempt
 
         if chat_history:
             content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
-            ai_response = self.OPENAI_MANAGER.respond_with_chat_history(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, content, True)
+            ai_response = await self.OPENAI_MANAGER.respond_with_chat_history_async(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, content, True)
+            split_message = extract_string_from_position(msg_to_respond, "Message:")
+            mp_print.gpt_input(f"{split_message}")
         else:
             content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
-            mp_print.debug(f"Sending content first sys message to GPT: {content} | {msg_to_respond}")
-            ai_response = self.OPENAI_MANAGER.respond_without_chat_history(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, content, True)
+            ai_response = await self.OPENAI_MANAGER.respond_without_chat_history_async(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, content, True)
+            split_message = extract_string_from_position(msg_to_respond, "Message:")
+            mp_print.gpt_input(f"{split_message}")
 
         self.GPT_RESPONSE_TOKEN_COUNT = self.get_num_tokens_per_string(ai_response)
 
         return ai_response
+    
 #FUTURE: Instead of thread locking, turn into queue system with a queue manager
     def speak(self, text):
         with self.speak_lock:
@@ -111,6 +159,37 @@ class Character:
 
             self.OBS_WEBSOCKET_MANAGER.clear_source_text(self.CHARACTER_DATA["obs_speech_text_source"])
             self.set_visible(False)
+    
+    async def add_to_queue(self, catagory : MessageQueue, msg : str) : 
+        queue = self.message_queues.get(catagory.value, self.message_queues[MessageQueue.DEFAULT.value])
+
+        await queue.put(msg)
+        self.messages_in_queue += 1
+        mp_print.info(f"Messages In Queue: {self.messages_in_queue}")
+        
+        
+    async def process_queue_loop(self) : 
+        try: 
+            while True : 
+                processed = False
+                for msg_queue in self.queue_poll_order:
+
+                    queue = self.message_queues[msg_queue.value]
+                    if not queue.empty() : 
+                        msg = await queue.get()
+                        self.speak(msg)
+                        self.messages_in_queue -= 1
+                        processed = True
+                        break
+                if not processed : 
+                    await asyncio.sleep(0.1)
+
+        except Exception as e : 
+            mp_print.error("Queue Loop Crashed!")
+            import traceback
+            traceback.print_exc()
+
+        
 
     def set_visible(self, visible=True):
         self.OBS_WEBSOCKET_MANAGER.set_source_visibility(scene=self.CHARACTER_DATA["obs_main_scene_name"], source=self.CHARACTER_DATA["obs_scene"],visibilty=visible)
@@ -152,3 +231,6 @@ class Character:
         num_tokens = len(encoding.encode(text))
 
         return num_tokens
+    
+
+

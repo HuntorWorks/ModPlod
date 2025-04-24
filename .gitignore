@@ -2,6 +2,7 @@
 .venv/
 .venv_py313/
 .venv_py312/
+.venv_312/
 .env
 .vscode/*
 bots/conversation_histories/Barry Braintree-ConversationHistoryBackup.txt
@@ -9,10 +10,12 @@ bot_token_data.json
 broadcaster_token_data.json
 /__pycache__/*
 bots/__pycache__/
-bots/barry_ai/__pycache__/
+bots/chat_bot/__pycache__/*
+bots/barry_ai/__pycache__/*
 core/__pycache__/
-web_app/routes/__pycache__/
-bots/characters/__pycache__/
+web_app/routes/__pycache__/*
+bots/characters/__pycache__/*
 web_app/__pycache__/
 recordings/*
 conversation_histories/*
+*.zip

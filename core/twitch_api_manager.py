@@ -65,7 +65,7 @@ class TwitchAPIManager:
         self.twitch_ai_actions_manager = None
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
-        self.NGROK_URL = "https://89e0-86-24-211-32.ngrok-free.app"
+        self.NGROK_URL = "https://144c-86-24-211-32.ngrok-free.app"
     
     async def on_ready(self, ready_event: EventData):
         mp_print.sys_message("Twitch API Manager is ready")
@@ -84,7 +84,7 @@ class TwitchAPIManager:
 
 #region TWITCH API MANAGER INIT AND AUTHENTICATION
     def start_twitch_api_manager(self):
-        asyncio.run(self.twitch_api_manager())
+        asyncio.create_task(self.twitch_api_manager())
     
     async def authenticate_broadcaster(self):
         try:
@@ -104,7 +104,7 @@ class TwitchAPIManager:
             # Mark as authenticated if token exists
             if self.token_data_bot:
                 self.is_bot_authenticated = True
-                mp_print.info(f"Bot token data assigned: {self.token_data_bot}")
+                #mp_print.info(f"Bot token data assigned: {self.token_data_bot}")
 
             # Validate user info after token is applied
             user_info = self.twitch_bot.get_users()
@@ -145,7 +145,6 @@ class TwitchAPIManager:
             await self.authenticate_bot()
             await self.authenticate_broadcaster()
             mp_print.info("Twitch API Manager Authenticated")
-            # BUG: When restarting the bot, it doesn't always unsubscribe from all eventSubs resulting in 409 'subscription already exists'
             # Unsubscribe from all eventSubs
             mp_print.debug("Unsubscribing from all previouseventSubs")
             await self.unsubscribe_all_eventsub()

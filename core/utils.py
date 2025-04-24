@@ -2,6 +2,11 @@ import asyncio
 import os
 from rich import print
 
+def extract_string_from_position(full_str : str, word_position : str) : 
+    full_str.strip()
+    split = full_str.rsplit(word_position)
+    return split[1]
+
 def run_async_tasks(coroutine):
     """Run an async task and return its result"""
     # For a new event loop

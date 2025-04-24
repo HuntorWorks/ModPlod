@@ -13,12 +13,45 @@ class TwitchChatActionsManager:
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
         self.COMMAND_MANAGER = TwitchChatCommandManager(self)
 
+        #INFO: Moved to chat bot, as barry implementation is not setup for auto mod yet!
+        self.static_triggers = { 
+            "follow me" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "here is my discord username" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "adding me on discord" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+            "request on discord" : 
+                {"action": "timeout", 
+                "reason": "Self-promo", 
+                "duration": 30
+                },
+        },
+        self.regex_triggers = [
+            {"pattern": r"(https?:\/\/)?(www\.)?(discord\.gg|discord\.com\/invite)", "action": "timeout", "reason": "Discord link", "duration": 60},
+            {"pattern": r"([a-zA-Z])\1{4,}", "action": "timeout", "reason": "Stop spamming", "duration": 20},
+            {"pattern": r"(https?:\/\/|www\.)[^\s]+", "action": "timeout", "reason": "Posting links is not allowed", "duration": 30}
+        ]
+
+
     ## Reads twitch chat and distributes it where needed if needed. 
     def process_twitch_chat(self, message_content: str, user_name: str, user_id: str):
         mp_print.debug(f"Processing twitch chat: {message_content}")
         if message_content.startswith("!"):
             self.COMMAND_MANAGER.process_twitch_command(message_content, user_name, user_id)
         else:
+            if self.check_auto_mod(message_content=message_content) : 
+                return
+
             payload = { 
                 "message": message_content,
                 "user_name": user_name,
@@ -217,6 +250,22 @@ class TwitchChatActionsManager:
             mp_print.error(f"Error setting channel game: {e}")
             self.send_twitch_message(f"Sorry, I couldn't set the channel game to {game}.")
 
+    def check_auto_mod(self, message_content: str, user_id: str) -> bool:
+        import re
+        message_lower = message_content.lower()
+
+        #Check against static triggers
+        for phrase, trigger in self.static_triggers:
+            if phrase in message_lower:
+                self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
+                return True
+
+        #Check against regex triggers
+        for trigger in self.regex_triggers:
+            if re.search(trigger["pattern"], message_lower):
+                self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
+                return True
+        return False
     
     ## HELPER FUNCTIONS
     def days_to_readable_format(self, total_days):
