@@ -1,4 +1,5 @@
 from core.utils import mp_print
+from bots.gpt_character import MessageQueue
 import hashlib
 class BarryAIEventHandler:
     def __init__(self, character):
@@ -29,7 +30,7 @@ class BarryAIEventHandler:
 
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has followed BeerHuntor's channel."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
 
     def on_twitch_subscribe_event(self, payload: dict):
         if payload.get('subscription_tier') == "1000":
@@ -41,22 +42,22 @@ class BarryAIEventHandler:
 
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has subscribed to BeerHuntor's channel, at tier {tier}."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
 
     def on_twitch_subscribe_gift_event(self, payload: dict):
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has gifted {payload.get('gift_count')} subscriptions to BeerHuntor's channel. They have gifted {payload.get('total_gifts_count')} subscriptions in total."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
 
     def on_twitch_subscription_message_event(self, payload: dict):
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has sent a message when they subscribed to BeerHuntor's channel it said: {payload.get('message')}"
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response)
 
     def on_twitch_raid_event(self, payload : dict): 
         prompt = f"{self.context_prompt}, Message: {payload.get('raiding_user')} has just raiding BeerHuntors channel, with {payload.get('raiding_viewers')}"
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        self.character.add_to_queue(MessageQueue.RAID, response)
 
 class BarryAIHandler:
     def __init__(self, character, twitch_api_manager):
@@ -98,11 +99,14 @@ class BarryAIHandler:
             user_name = payload.get('user_name')
             user_id = payload.get('user_id')
             
-            if self.check_auto_mod(message_content, user_id):
-                self.character.speak(f"Hey {user_name}, please don't post links or spam in chat. Thanks!")
+            msg = f"Hey {user_name}, please don't post links or spam in chat. Thanks!"
 
+            if self.check_auto_mod(message_content, user_id):
+                self.character.add_to_queue(MessageQueue.MOD, msg)
+
+            return
         except ValueError:
-            mp_print.error("Error processing message: {payload}")
+            mp_print.error(f"Error processing message: {payload}")
             return
         
     def check_auto_mod(self, message_content: str, user_id: str) -> bool:
@@ -110,7 +114,7 @@ class BarryAIHandler:
         message_lower = message_content.lower()
 
         #Check against static triggers
-        for phrase, trigger in self.static_triggers.items():
+        for phrase, trigger in self.static_triggers:
             if phrase in message_lower:
                 self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
                 return True
