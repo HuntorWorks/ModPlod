@@ -1,7 +1,7 @@
 from quart import Blueprint, request, jsonify
-from core.utils import run_async_tasks
 from core.shared_managers import twitch_api_manager, barry_ai_event_handler
 from core.utils import mp_print
+import asyncio
 
 twitch_routes = Blueprint("twitch_routes", __name__)
 
@@ -9,7 +9,7 @@ twitch_routes = Blueprint("twitch_routes", __name__)
 async def send_twitch_message():
     try:
         message = "Test Send Message"
-        await twitch_api_manager.send_message(message)
+        twitch_api_manager.send_message(message)
         
         return jsonify({"status": "success", "message": "Message sent"})
     except Exception as e:
@@ -27,14 +27,14 @@ async def send_twitch_remove_blocked_term():
 async def send_twitch_create_clip():
     try:
         #broadcast_id = run_async_tasks(twitch_api_manager.get_broadcast_id_from_name())
-        broadcast_id = await twitch_api_manager.get_broadcast_id_from_name()
+        broadcast_id = twitch_api_manager.get_broadcast_id_from_name()
         mp_print.debug(f"Final broadcast_id in route: : {repr(broadcast_id)}")
 
         if not broadcast_id:
             return jsonify({"status": "error", "message": "No broadcast ID found"})
         
         #clip_result = run_async_tasks(twitch_api_manager.create_clip(broadcast_id))
-        clip_result = await twitch_api_manager.create_clip(broadcaster_id=broadcast_id)
+        clip_result = twitch_api_manager.create_clip(broadcaster_id=broadcast_id)
 
         return jsonify({
             "status": "success", 
@@ -77,7 +77,7 @@ async def twitch_eventsub_callback_follow():
             "user": data["event"].get("user_name", "unknown"),
             "user_id": data["event"].get("user_id", "unknown")
         }     
-        await barry_ai_event_handler.on_twitch_follow_event(payload)
+        asyncio.create_task(barry_ai_event_handler.on_twitch_follow_event(payload))
 
     return jsonify({"status": "ok"}), 200
 
@@ -94,7 +94,7 @@ async def twitch_eventsub_callback_subscribe():
             "subscription_tier": data["event"].get("tier", "unknown"),
             "is_gift_sub": data["event"].get("is_gift", "unknown")
         }
-        await barry_ai_event_handler.on_twitch_subscribe_event(payload)
+        asyncio.create_task(barry_ai_event_handler.on_twitch_subscribe_event(payload))
         
         
     return jsonify({"status": "ok"}), 200
@@ -114,7 +114,7 @@ async def twitch_eventsub_callback_subscribe_gift():
             "total_gifts_count": data["event"].get("cumulative_total", 0)
         }
 
-        await barry_ai_event_handler.on_twitch_subscribe_gift_event(payload)
+        asyncio.create_task(barry_ai_event_handler.on_twitch_subscribe_gift_event(payload))
 
     return jsonify({"status": "ok"}), 200
 
@@ -130,7 +130,7 @@ async def twitch_eventsub_callback_subscription_msg():
             "user": data["event"].get("user_name", "unknown"),
             "message": data["event"].get("message", "unknown")
         }
-        await barry_ai_event_handler.on_twitch_subscription_message_event(payload)
+        asyncio.create_task(barry_ai_event_handler.on_twitch_subscription_message_event(payload))
 
 
     return jsonify({"status": "ok"}), 200
@@ -144,7 +144,7 @@ async def twitch_eventsub_callback_incoming_raid():
             "raiding_user": data["event"].get("from_broadcaster_user_name", "unknown"),
             "raiding_viewers": data["event"].get("viewers", "unknown") 
         }
-        await barry_ai_event_handler.on_twitch_raid_event(payload)
+        asyncio.create_task(barry_ai_event_handler.on_twitch_raid_event(payload))
     else : 
         return jsonify ({"status": "failed no event found"})
     return jsonify({"status": "ok"}), 200
