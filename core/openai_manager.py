@@ -1,4 +1,5 @@
 import os
+import asyncio
 from dotenv import load_dotenv
 from rich import print
 from openai import OpenAI
@@ -15,7 +16,11 @@ class OpenAIManager:
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         except NotImplementedError:
             print(f"[bold red]ERROR[/bold red]: You forgot to set an .env environment, or didn't set an OPENAI_API_KEY in .env")
-
+    
+    async def respond_without_chat_history_async(self, *args, **kwargs) : 
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.respond_without_chat_history, *args, **kwargs)
+    
     def respond_without_chat_history(self, message, gpt_model, temperature, max_tokens, system_message=None, send_system_message=False):
         response = None
         if system_message is None:
@@ -48,6 +53,10 @@ class OpenAIManager:
         response_text = response.choices[0].message.content.strip()
 
         return response_text
+    
+    async def respond_with_chat_history_async(self, *args, **kwargs) : 
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.respond_with_chat_history, *args, **kwargs)
 
     def respond_with_chat_history(self, message, gpt_model, temperature, max_tokens, conversation_history, system_message=None, send_system_message=False):
         response = None

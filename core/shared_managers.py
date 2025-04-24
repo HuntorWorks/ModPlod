@@ -8,6 +8,8 @@ from core.utils import mp_print
 from bots.barry_ai.barry_ai_state import BarryAIState
 from bots.chat_bot.twitch_bot_state import TwitchBotState
 
+import asyncio
+
 twitch_api_manager = TwitchAPIManager()
 twitch_ai_actions_manager = TwitchChatActionsManager()
 obs_manager = OBSWebsocketManager()
@@ -25,4 +27,3 @@ twitch_bot_state = TwitchBotState()
 
 twitch_api_manager.set_actions_manager(twitch_ai_actions_manager)
 twitch_ai_actions_manager.set_event_handler(barry_ai_handler)
-

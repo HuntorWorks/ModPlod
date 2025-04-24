@@ -1,5 +1,6 @@
 from core.utils import mp_print
-import hashlib
+from bots.gpt_character import MessageQueue
+import hashlib, asyncio
 class BarryAIEventHandler:
     def __init__(self, character):
         self.character = character
@@ -26,10 +27,11 @@ class BarryAIEventHandler:
             return
         self.recent_follow_hashes.add(event_hash)
 
-
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has followed BeerHuntor's channel."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        mp_print.info("FOLLOW SUB")
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
     def on_twitch_subscribe_event(self, payload: dict):
         if payload.get('subscription_tier') == "1000":
@@ -41,22 +43,26 @@ class BarryAIEventHandler:
 
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has subscribed to BeerHuntor's channel, at tier {tier}."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
     def on_twitch_subscribe_gift_event(self, payload: dict):
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has gifted {payload.get('gift_count')} subscriptions to BeerHuntor's channel. They have gifted {payload.get('total_gifts_count')} subscriptions in total."
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
     def on_twitch_subscription_message_event(self, payload: dict):
         prompt = f"{self.context_prompt}, Message: {payload.get('user') } has sent a message when they subscribed to BeerHuntor's channel it said: {payload.get('message')}"
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
     def on_twitch_raid_event(self, payload : dict): 
         prompt = f"{self.context_prompt}, Message: {payload.get('raiding_user')} has just raiding BeerHuntors channel, with {payload.get('raiding_viewers')}"
         response = self.character.get_gpt_string_response(msg_to_respond=prompt, chat_history=False)
-        self.character.speak(response)
+        asyncio.create_task(self.character.add_to_queue(MessageQueue.FOLLOW_SUB, response))
+        #self.character.speak(response)
 
 class BarryAIHandler:
     def __init__(self, character, twitch_api_manager):
@@ -100,7 +106,7 @@ class BarryAIHandler:
             
             if self.check_auto_mod(message_content, user_id):
                 self.character.speak(f"Hey {user_name}, please don't post links or spam in chat. Thanks!")
-
+            return
         except ValueError:
             mp_print.error("Error processing message: {payload}")
             return
