@@ -15,7 +15,7 @@ class OpenAIManager:
             load_dotenv()
             self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         except NotImplementedError:
-            print(f"[bold red]ERROR[/bold red]: You forgot to set an .env environment, or didn't set an OPENAI_API_KEY in .env")
+            mp_print.error("You forgot to set an .env environment, or didn't set an OPENAI_API_KEY in .env")
     
     async def respond_without_chat_history_async(self, *args, **kwargs) : 
         loop = asyncio.get_running_loop()
@@ -27,9 +27,9 @@ class OpenAIManager:
             system_message = {"role": "system", "content": ""}
 
         if not message:
-            print("[bold red]ERROR[/bold red]:  Didn't receive prompt.  Discontinuing process.")
+            mp_print.error("[OpenAIManager] No prompt could be deciphered. Discontinuing process")
             return
-        mp_print.debug(f"Sending message to GPT: {system_message} | {message}")
+        
         if send_system_message:
             response = self.client.chat.completions.create(
                 model=gpt_model,
@@ -64,7 +64,7 @@ class OpenAIManager:
             system_message = {"role": "system", "content": ""}
 
         if not message:
-            print("[bold red]ERROR[/bold red]:  Didn't receive prompt.  Discontinuing process.")
+            mp_print.error("[OpenAIManager] No prompt could be deciphered. Discontinuing process")
             return
 
         if send_system_message:

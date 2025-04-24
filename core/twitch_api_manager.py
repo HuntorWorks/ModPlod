@@ -104,7 +104,7 @@ class TwitchAPIManager:
             # Mark as authenticated if token exists
             if self.token_data_bot:
                 self.is_bot_authenticated = True
-                mp_print.info(f"Bot token data assigned: {self.token_data_bot}")
+                #mp_print.info(f"Bot token data assigned: {self.token_data_bot}")
 
             # Validate user info after token is applied
             user_info = self.twitch_bot.get_users()

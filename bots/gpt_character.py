@@ -4,7 +4,7 @@ from core.openai_manager import OpenAIManager
 from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
-from core.utils import mp_print
+from core.utils import mp_print, extract_string_from_position
 from enum import Enum
 import asyncio
 import os
@@ -112,7 +112,6 @@ class Character:
         
         with open(full_path, "r") as file:
             self.FIRST_SYSTEM_MESSAGE = file.read()
-            mp_print.debug(f"Loaded first system message: {self.FIRST_SYSTEM_MESSAGE}")
             self.add_to_chat_history()
 
     def handle_mic_input(self, stop_recording_key):
@@ -135,14 +134,18 @@ class Character:
         if chat_history:
             content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
             ai_response = await self.OPENAI_MANAGER.respond_with_chat_history_async(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, self.conversation_history, content, True)
+            split_message = extract_string_from_position(msg_to_respond, "Message:")
+            mp_print.gpt_input(f"{split_message}")
         else:
             content = {"role": "system", "content": self.FIRST_SYSTEM_MESSAGE}
-            mp_print.debug(f"Sending content first sys message to GPT: {content} | {msg_to_respond}")
             ai_response = await self.OPENAI_MANAGER.respond_without_chat_history_async(msg_to_respond, self.GPT_MODEL, self.GPT_TEMPERATURE,  self.GPT_MAX_TOKENS, content, True)
+            split_message = extract_string_from_position(msg_to_respond, "Message:")
+            mp_print.gpt_input(f"{split_message}")
 
         self.GPT_RESPONSE_TOKEN_COUNT = self.get_num_tokens_per_string(ai_response)
 
         return ai_response
+    
 #FUTURE: Instead of thread locking, turn into queue system with a queue manager
     def speak(self, text):
         with self.speak_lock:
@@ -162,6 +165,7 @@ class Character:
 
         await queue.put(msg)
         self.messages_in_queue += 1
+        mp_print.info(f"Messages In Queue: {self.messages_in_queue}")
         
         
     async def process_queue_loop(self) : 
