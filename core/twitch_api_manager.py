@@ -65,7 +65,7 @@ class TwitchAPIManager:
         self.twitch_ai_actions_manager = None
         self.TWITCH_TARGET_CHANNEL = os.getenv("TWITCH_TARGET_CHANNEL")
 
-        self.NGROK_URL = "https://9450-86-24-211-32.ngrok-free.app"
+        self.NGROK_URL = "https://89e0-86-24-211-32.ngrok-free.app"
     
     async def on_ready(self, ready_event: EventData):
         mp_print.sys_message("Twitch API Manager is ready")

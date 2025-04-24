@@ -24,10 +24,10 @@ class TwitchChatActionsManager:
                 "user_name": user_name,
                 "user_id": user_id
             }
-            if self.barry_ai_event_handler is not None:
-                self.barry_ai_event_handler.on_message_received(payload)
+            if self.barry_ai_handler is not None:
+                self.barry_ai_handler.on_message_received(payload)
             else: 
-                mp_print.error(f"Barry AI Event Handler is set to: {self.barry_ai_event_handler}")
+                mp_print.error(f"Barry AI Event Handler is set to: {self.barry_ai_handler}")
 
     def send_twitch_message(self, message: str):
         from core.shared_managers import twitch_api_manager
@@ -274,5 +274,5 @@ class TwitchChatActionsManager:
                 return True
         return False
     
-    def set_event_handler(self, barry_ai_event_handler):
-        self.barry_ai_event_handler = barry_ai_event_handler
+    def set_event_handler(self, barry_ai_handler):
+        self.barry_ai_handler = barry_ai_handler

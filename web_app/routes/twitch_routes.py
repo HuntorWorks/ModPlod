@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from core.utils import run_async_tasks
-from core.shared_managers import twitch_api_manager, barry_ai_event_handler
+from core.shared_managers import twitch_api_manager, barry_ai_handler
 from core.utils import mp_print
 import json
 
@@ -77,7 +77,7 @@ def twitch_eventsub_callback_follow():
             "user": data["event"].get("user_name", "unknown"),
             "user_id": data["event"].get("user_id", "unknown")
         }     
-        barry_ai_event_handler.on_twitch_follow_event(payload)
+        barry_ai_handler.on_twitch_follow_event(payload)
 
     return jsonify({"status": "ok"}), 200
 
@@ -94,7 +94,7 @@ def twitch_eventsub_callback_subscribe():
             "subscription_tier": data["event"].get("tier", "unknown"),
             "is_gift_sub": data["event"].get("is_gift", "unknown")
         }
-        barry_ai_event_handler.on_twitch_subscribe_event(payload)
+        barry_ai_handler.on_twitch_subscribe_event(payload)
         
         
     return jsonify({"status": "ok"}), 200
@@ -115,7 +115,7 @@ def twitch_eventsub_callback_subscribe_gift():
             "total_gifts_count": data["event"].get("cumulative_total", 0)
         }
 
-        barry_ai_event_handler.on_twitch_subscribe_gift_event(payload)
+        barry_ai_handler.on_twitch_subscribe_gift_event(payload)
 
     return jsonify({"status": "ok"}), 200
 
@@ -132,7 +132,7 @@ def twitch_eventsub_callback_subscription_msg():
             "user": data["event"].get("user_name", "unknown"),
             "message": data["event"].get("message", "unknown")
         }
-        barry_ai_event_handler.on_twitch_subscription_message_event(payload)
+        barry_ai_handler.on_twitch_subscription_message_event(payload)
 
 
     return jsonify({"status": "ok"}), 200
@@ -147,7 +147,7 @@ def twitch_eventsub_callback_incoming_raid():
             "raiding_user": data["event"].get("from_broadcaster_user_name", "unknown"),
             "raiding_viewers": data["event"].get("viewers", "unknown") 
         }
-        barry_ai_event_handler.on_twitch_raid_event(payload)
+        barry_ai_handler.on_twitch_raid_event(payload)
     else : 
         return jsonify ({"status": "failed no event found"})
     return jsonify({"status": "ok"}), 200

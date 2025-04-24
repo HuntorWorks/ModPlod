@@ -24,5 +24,5 @@ barry_state = BarryAIState()
 twitch_bot_state = TwitchBotState()
 
 twitch_api_manager.set_actions_manager(twitch_ai_actions_manager)
-twitch_ai_actions_manager.set_event_handler(barry_ai_event_handler)
+twitch_ai_actions_manager.set_event_handler(barry_ai_handler)
 
