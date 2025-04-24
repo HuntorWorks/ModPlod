@@ -49,7 +49,7 @@ class TwitchChatActionsManager:
         if message_content.startswith("!"):
             self.COMMAND_MANAGER.process_twitch_command(message_content, user_name, user_id)
         else:
-            if self.check_auto_mod(message_content=message_content) : 
+            if self.check_auto_mod(message_content=message_content, user_id=user_id) : 
                 return
 
             payload = { 
