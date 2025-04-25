@@ -35,7 +35,7 @@ class TwitchChatActionsManager:
                 "reason": "Self-promo", 
                 "duration": 30
                 },
-        },
+        }
         self.regex_triggers = [
             {"pattern": r"(https?:\/\/)?(www\.)?(discord\.gg|discord\.com\/invite)", "action": "timeout", "reason": "Discord link", "duration": 60},
             {"pattern": r"([a-zA-Z])\1{4,}", "action": "timeout", "reason": "Stop spamming", "duration": 20},
@@ -255,7 +255,7 @@ class TwitchChatActionsManager:
         message_lower = message_content.lower()
 
         #Check against static triggers
-        for phrase, trigger in self.static_triggers:
+        for phrase, trigger in self.static_triggers.items():
             if phrase in message_lower:
                 self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
                 return True

@@ -5,7 +5,8 @@ from core.audio_manager import AudioManager
 from core.obs_websocket_manager import OBSWebsocketManager
 from core.animation_manager import AnimationManager
 from core.utils import mp_print, extract_string_from_position
-from core.constants import APP_MODE, Mode
+from core.constants import APP_MODE, Mode, Priority
+from asyncio import PriorityQueue
 from enum import Enum
 import asyncio
 import os
@@ -63,23 +64,15 @@ class Character:
         self.text_to_speech_manager = TextToSpeechManager()
         self.event_handler = event_handler
 
+        # Message Queue
+        self.TIME_BETWEEN_MESSAGES = 5
         self.messages_in_queue = 0
-        self.message_queues = { 
-            "tts" : asyncio.Queue(),
-            "mod" : asyncio.Queue(),
-            "raid" : asyncio.Queue(),
-            "follow_sub": asyncio.Queue(),
-            "redeem" : asyncio.Queue(), 
-            "default" : asyncio.Queue(),
-        }
 
-        self.queue_poll_order = { 
-            MessageQueue.MOD,
-            MessageQueue.FOLLOW_SUB,
-            MessageQueue.TEXT_TO_SPEECH,
-            MessageQueue.REDEEM, 
-            MessageQueue.RAID,
-            MessageQueue.DEFAULT
+        self.message_priority_queue = PriorityQueue()
+        self.message_priority = { 
+            Priority.HIGH: 1, # MOD, Big Donos, Subs, bits
+            Priority.MEDIUM : 2, # Raids, Follows, redeems,
+            Priority.LOW: 3 # Generic Chat, Chat Interaction
         }
 
 
@@ -167,10 +160,14 @@ class Character:
             self.OBS_WEBSOCKET_MANAGER.clear_source_text(self.CHARACTER_DATA["obs_speech_text_source"])
             self.set_visible(False)
     
-    async def add_to_queue(self, catagory : MessageQueue, msg : str) : 
-        queue = self.message_queues.get(catagory.value, self.message_queues[MessageQueue.DEFAULT.value])
+    async def add_to_queue(self, msg : str, priority : Priority) : 
+        msg_reply = MessageReply(msg, priority)
+        mp_print.debug(f"Prio : {msg_reply.priority.value} reply: {msg_reply.message_context}")
+        await self.message_priority_queue.put((msg_reply.priority.value, msg_reply.message_context))
 
-        await queue.put(msg)
+        # queue = self.message_queues.get(catagory.value, self.message_queues[MessageQueue.DEFAULT.value])
+
+        # await queue.put(msg)
         self.messages_in_queue += 1
         mp_print.info(f"Messages In Queue: {self.messages_in_queue}")
         
@@ -178,18 +175,13 @@ class Character:
     async def process_queue_loop(self) : 
         try: 
             while True : 
-                processed = False
-                for msg_queue in self.queue_poll_order:
-
-                    queue = self.message_queues[msg_queue.value]
-                    if not queue.empty() : 
-                        msg = await queue.get()
-                        self.speak(msg)
-                        self.messages_in_queue -= 1
-                        processed = True
-                        break
-                if not processed : 
-                    await asyncio.sleep(0.1)
+                if not self.message_priority_queue.empty() : 
+                    msg = await self.message_priority_queue.get()
+                    self.speak(msg)
+                    self.messages_in_queue -= 1
+                    await asyncio.sleep(self.TIME_BETWEEN_MESSAGES)
+                
+                await asyncio.sleep(0.1)
 
         except Exception as e : 
             mp_print.error("Queue Loop Crashed!")
@@ -241,3 +233,7 @@ class Character:
     
 
 
+class MessageReply(): 
+    def __init__(self, message_context : str, priority : Priority): 
+        self.message_context = message_context
+        self.priority = priority

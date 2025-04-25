@@ -25,7 +25,7 @@ def start_audio_window():
 async def start_barry() : 
     await barry_ai.start()
 
-async def main(port=5000) : 
+async def main() : 
     mp_print.info(f"[Main] Starting up..")
     
     start_audio_window()
@@ -37,7 +37,7 @@ async def main(port=5000) :
 
     await app.run_task(
           host="0.0.0.0", 
-          port=port, 
+          port=PORT, 
           certfile="cert.pem",
           keyfile="key.pem",
     )

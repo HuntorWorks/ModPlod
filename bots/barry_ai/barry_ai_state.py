@@ -1,4 +1,4 @@
-from bots.barry_ai.enums import Mood
+from core.constants import Mood
 
 ## INFO:  What do i want barry to respond to, and what do i want to be 'toggleable'
 class BarryAIState :
