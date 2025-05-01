@@ -22,5 +22,5 @@ class Mood(Enum):
 APP_MODE = Mode(os.getenv("MODPLOD_ENV", "dev").lower())
 
 NGROK_DEV_TUNNEL_URL = "https://0f37-86-24-211-32.ngrok-free.app" #port 5001 ->  http://localhost:5001
-NGROK_LIVE_TUNNEL_URL = "https://f978-86-24-211-32.ngrok-free.app" # -> http://localhost:5000
+NGROK_LIVE_TUNNEL_URL = "https://a76b-86-24-211-32.ngrok-free.app" # -> http://localhost:5000
 

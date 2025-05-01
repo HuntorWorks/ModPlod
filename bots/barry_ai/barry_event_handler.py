@@ -106,7 +106,7 @@ class BarryAIHandler:
             msg = f"Hey {user_name}, please don't post links or spam in chat. Thanks!"
 
             if self.check_auto_mod(message_content, user_id):
-                self.character.add_to_queue(MessageQueue.MOD, msg)
+                self.character.add_to_queue(Priority.HIGH, msg)
 
             return
         except ValueError:
@@ -130,3 +130,7 @@ class BarryAIHandler:
                 self.twitch_api_manager.send_twitch_timeout(user_id=user_id, duration=trigger["duration"], reason=trigger["reason"])
                 return True
         return False
+
+    def execute_test_command(self) : 
+        msg = "What do ya want, im trying to sleep here?"
+        self.character.speak(msg)

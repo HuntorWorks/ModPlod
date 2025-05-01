@@ -76,8 +76,11 @@ class TwitchChatCommandManager:
                 self.actions_manager.send_twitch_unban_user(user_name=user_name, user_to_unban=user_to_unban)
             else:
                 self.actions_manager.send_twitch_message(f"Sorry {user_name}, you can only unban once every {self.command_cooldowns['unban']} seconds.")
-
-        
+        if command == "!test": 
+            if self.actions_manager.is_broadcaster_or_moderator(user_name): 
+                # pass message direct to barry. 
+                barry = self.actions_manager.get_event_handler()
+                barry.execute_test_command()
     def parse_timeout_command(self, args: list):
         try:
             user = args[0] # user to timeout

@@ -325,3 +325,6 @@ class TwitchChatActionsManager:
     
     def set_event_handler(self, barry_ai_handler):
         self.barry_ai_handler = barry_ai_handler
+
+    def get_event_handler(self) : 
+        return self.barry_ai_handler
